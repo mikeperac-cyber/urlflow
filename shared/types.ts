@@ -160,6 +160,9 @@ export interface BackupInfo {
 
 export interface CapturePayload {
   url: string | null;
+  title?: string;
+  mode?: 'clipboard' | 'dialog';
+  requestId?: string;
 }
 
 export interface FlowApi {
