@@ -13,7 +13,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { ITEM_KIND_LABEL, type LinkItem, type NoteItem, type PlanItem, type TaskItem } from '../../shared/types';
-import { planProgress } from '../../shared/core';
+import { isReadingState, planProgress } from '../../shared/core';
 import { displayUrl, faviconTone, initialsFor } from '../../shared/url';
 import { useApp } from '../app-context';
 import { dueInfo, formatDate, relativeTime, reminderInfo } from '../lib/dates';
@@ -86,6 +86,20 @@ export function LinkCard({ link, compact = false }: { link: LinkItem; compact?: 
       {!compact && link.notes ? <p className="link-card__notes">{link.notes}</p> : null}
 
       <div className="card-tags">
+        <select
+          className="input input--select reading-state"
+          aria-label={`Reading state for ${link.title}`}
+          value={link.readingState}
+          onClick={(event) => event.stopPropagation()}
+          onChange={(event) => {
+            const next = event.target.value;
+            if (isReadingState(next)) void run(api.update(link.id, { readingState: next }));
+          }}
+        >
+          <option value="unread">Unread</option>
+          <option value="later">Later</option>
+          <option value="read">Read</option>
+        </select>
         {plan ? <PlanBadge planId={plan.id} /> : null}
         {link.tags.slice(0, 4).map((tag) => (
           <TagPill key={tag}>#{tag}</TagPill>

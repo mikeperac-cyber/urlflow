@@ -7,10 +7,12 @@ import {
   type ItemPatch,
   type PlanItem,
   type Priority,
+  type ReadingState,
   type Step,
   type TaskItem,
 } from '../../shared/types';
 import { hostOf, isSafeExternalUrl, normalizeUrl } from '../../shared/url';
+import { isReadingState } from '../../shared/core';
 import { useApp } from '../app-context';
 import { defaultReminderValue, fromDateInput, fromInputValue, toInputValue, tomorrowAt } from '../lib/dates';
 import { Button, Field, IconButton, Modal, Segmented } from './ui';
@@ -50,6 +52,9 @@ function ItemDialogInner() {
   const [tagText, setTagText] = useState((item?.tags ?? preset.tags ?? []).join(', '));
   const [planId, setPlanId] = useState<string>(item?.planId ?? preset.planId ?? '');
   const [favorite, setFavorite] = useState(item?.kind === 'link' ? item.favorite : Boolean(preset.favorite));
+  const [readingState, setReadingState] = useState<ReadingState>(
+    item?.kind === 'link' ? item.readingState : preset.readingState ?? 'unread',
+  );
   const [summary, setSummary] = useState(item?.kind === 'plan' ? item.summary : preset.summary ?? '');
   const [status, setStatus] = useState<'active' | 'paused' | 'done'>(
     item?.kind === 'plan' ? item.status : preset.status ?? 'active',
@@ -154,6 +159,7 @@ function ItemDialogInner() {
         if (item.kind === 'link') {
           patch.url = normalizeUrl(urlInput).url;
           patch.favorite = favorite;
+          patch.readingState = readingState;
           patch.description = metadata?.description ?? null;
           patch.siteName = metadata?.siteName ?? null;
           patch.faviconKey = metadata?.faviconKey ?? null;
@@ -201,6 +207,7 @@ function ItemDialogInner() {
       if (kind === 'link') {
         draft.url = normalizeUrl(urlInput).url;
         draft.favorite = favorite;
+        draft.readingState = readingState;
         draft.description = metadata?.description ?? null;
         draft.siteName = metadata?.siteName ?? null;
         draft.faviconKey = metadata?.faviconKey ?? null;
@@ -549,6 +556,22 @@ function ItemDialogInner() {
           </div>
           <span className="field__hint">Windows shows a notification when it is due.</span>
         </div>
+
+        {kind === 'link' ? (
+          <Field label="Reading state">
+            <select
+              className="input input--select reading-state"
+              value={readingState}
+              onChange={(event) => {
+                if (isReadingState(event.target.value)) setReadingState(event.target.value);
+              }}
+            >
+              <option value="unread">Unread</option>
+              <option value="later">Later</option>
+              <option value="read">Read</option>
+            </select>
+          </Field>
+        ) : null}
 
         {kind === 'link' ? (
           <label className="checkbox">

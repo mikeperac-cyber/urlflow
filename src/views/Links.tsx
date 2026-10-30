@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { ClipboardPaste, Link2, Plus, Search } from 'lucide-react';
 import { extractUrl } from '../../shared/url';
+import { isReadingState } from '../../shared/core';
+import type { ReadingState } from '../../shared/types';
 import { useApp } from '../app-context';
 import { LinkCard } from '../components/items';
 import { Button, EmptyState, Segmented, TagPill } from '../components/ui';
@@ -11,6 +13,7 @@ type Sort = 'newest' | 'title' | 'opened';
 export function LinksView() {
   const { links, search, openEditor, api, pushToast } = useApp();
   const [filter, setFilter] = useState<Filter>('all');
+  const [readingState, setReadingState] = useState<ReadingState | 'all'>('all');
   const [sort, setSort] = useState<Sort>('newest');
   const [tag, setTag] = useState<string | null>(null);
   const [pasting, setPasting] = useState(false);
@@ -27,6 +30,7 @@ export function LinksView() {
     const query = search.trim().toLowerCase();
     return links
       .filter((link) => {
+        if (readingState !== 'all' && link.readingState !== readingState) return false;
         if (filter === 'favorites' && !link.favorite) return false;
         if (filter === 'unfiled' && link.planId) return false;
         if (tag && !link.tags.includes(tag)) return false;
@@ -41,7 +45,7 @@ export function LinksView() {
         if (sort === 'opened') return (b.lastOpenedAt ?? '').localeCompare(a.lastOpenedAt ?? '');
         return b.createdAt.localeCompare(a.createdAt);
       });
-  }, [links, filter, tag, search, sort]);
+  }, [links, filter, readingState, tag, search, sort]);
 
   const favorites = links.filter((link) => link.favorite).length;
 
@@ -76,6 +80,23 @@ export function LinksView() {
           onChange={(next) => setFilter(next)}
         />
         <div className="toolbar__right">
+          <label className="reading-filter">
+            Reading state
+            <select
+              aria-label="Filter by reading state"
+              className="input input--select"
+              value={readingState}
+              onChange={(event) => {
+                const next = event.target.value;
+                if (next === 'all' || isReadingState(next)) setReadingState(next);
+              }}
+            >
+              <option value="all">All</option>
+              <option value="unread">Unread</option>
+              <option value="later">Later</option>
+              <option value="read">Read</option>
+            </select>
+          </label>
           <Button
             variant="subtle"
             icon={<ClipboardPaste size={14} />}
@@ -84,7 +105,7 @@ export function LinksView() {
           >
             {pasting ? 'Reading clipboard…' : 'Paste from clipboard'}
           </Button>
-          <select className="input input--select" value={sort} onChange={(event) => setSort(event.target.value as Sort)}>
+          <select aria-label="Sort links" className="input input--select" value={sort} onChange={(event) => setSort(event.target.value as Sort)}>
             <option value="newest">Newest first</option>
             <option value="title">Title A–Z</option>
             <option value="opened">Recently opened</option>
@@ -106,7 +127,7 @@ export function LinksView() {
       ) : null}
 
       {filtered.length === 0 ? (
-        search.trim() || tag || filter !== 'all' ? (
+        search.trim() || tag || filter !== 'all' || readingState !== 'all' ? (
           <EmptyState
             icon={<Search size={22} />}
             title="No links match"
@@ -117,6 +138,7 @@ export function LinksView() {
                 variant="subtle"
                 onClick={() => {
                   setFilter('all');
+                  setReadingState('all');
                   setTag(null);
                 }}
               >
