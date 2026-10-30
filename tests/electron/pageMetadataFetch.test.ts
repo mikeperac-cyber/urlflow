@@ -1,10 +1,15 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtemp, readdir, rm, writeFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, readdir, rm, writeFile, mkdir, readFile, rename } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fetchPageMetadata, readFaviconDataUrl } from '../../electron/pageMetadata';
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return { ...actual, rename: vi.fn(actual.rename) };
+});
 
 const pageUrl = 'https://example.com/articles/page';
 const iconBytes = Buffer.from([0, 0, 1, 0, 9, 8, 7]);
@@ -23,6 +28,8 @@ describe('bounded metadata fetching and favicon cache', () => {
     vi.stubGlobal('fetch', mockedFetch);
   });
   afterEach(async () => {
+    vi.mocked(rename).mockReset();
+    vi.mocked(rename).mockImplementation((await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises')).rename);
     vi.useRealTimers();
     vi.unstubAllGlobals();
     await rm(directory, { recursive: true, force: true });
@@ -36,6 +43,67 @@ describe('bounded metadata fetching and favicon cache', () => {
     expect(metadata).toEqual({ title: 'Useful page', description: 'Summary', siteName: 'Example', faviconKey: key });
     expect(metadata?.faviconKey).toMatch(/^[a-f0-9]{64}$/);
     expect(await readFaviconDataUrl(directory, key)).toBe(`data:image/vnd.microsoft.icon;base64,${iconBytes.toString('base64')}`);
+  });
+
+  it('keepsConcurrentFaviconMimeAndBytesFromOneCompleteResponse', async () => {
+    const png = Buffer.from('distinct PNG image bytes');
+    const gif = Buffer.from('different GIF image bytes');
+    const iconUrl = 'https://example.com/favicon.ico';
+    const key = createHash('sha256').update(iconUrl).digest('hex');
+    let firstPublished!: () => void;
+    let releaseFirst!: () => void;
+    const published = new Promise<void>((resolve) => { firstPublished = resolve; });
+    const release = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises');
+    vi.mocked(rename).mockImplementation(async (source, destination) => {
+      const isFirstPayload = destination === path.join(directory, 'favicons', key)
+        && (await readFile(source)).includes(png);
+      await actual.rename(source, destination);
+      if (isFirstPayload) {
+        firstPublished();
+        await release;
+      }
+    });
+    let icons = 0;
+    mockedFetch.mockImplementation(async (url) => url === pageUrl
+      ? response('<title>Page</title>', pageUrl, 'text/html')
+      : response(++icons === 1 ? png : gif, iconUrl, icons === 1 ? 'image/png' : 'image/gif'));
+    const first = fetchPageMetadata(pageUrl, directory);
+    await published;
+    const duringPublication = await readFaviconDataUrl(directory, key);
+    const second = await fetchPageMetadata(pageUrl, directory);
+    releaseFirst();
+    expect((await first)?.faviconKey).toBe(key);
+    expect(second?.faviconKey).toBe(key);
+    expect(duringPublication).toBe(`data:image/png;base64,${png.toString('base64')}`);
+    const dataUrl = await readFaviconDataUrl(directory, key);
+    expect(dataUrl).not.toBeNull();
+    const [header, encoded] = dataUrl!.split(',');
+    const bytes = Buffer.from(encoded, 'base64');
+    expect([
+      header === 'data:image/png;base64' && bytes.equals(png),
+      header === 'data:image/gif;base64' && bytes.equals(gif),
+    ]).toContain(true);
+    expect(await readdir(path.join(directory, 'favicons'))).toEqual([key]);
+  });
+
+  it('rejectsInvalidFaviconRecordHeadersAndPayloadLengths', async () => {
+    const key = 'b'.repeat(64);
+    await mkdir(path.join(directory, 'favicons'));
+    const record = (header: string, bytes = iconBytes) => Buffer.concat([Buffer.from(header), bytes]);
+    for (const corrupt of [
+      record('URLFLOW-FAVICON-1\nimage/png\n999\n'),
+      record(`URLFLOW-FAVICON-1\nimage/svg+xml\n${iconBytes.length}\n`),
+      record(`WRONG-VERSION\nimage/png\n${iconBytes.length}\n`),
+      record(`URLFLOW-FAVICON-1\nimage/png\n0${iconBytes.length}\n`),
+      record('URLFLOW-FAVICON-1\nimage/png\n0\n', Buffer.alloc(0)),
+      record('URLFLOW-FAVICON-1\nimage/png\n128001\n', Buffer.alloc(128_001)),
+    ]) {
+      await writeFile(path.join(directory, 'favicons', key), corrupt);
+      // A stale sidecar must not turn an invalid single-file record into an icon.
+      await writeFile(path.join(directory, 'favicons', `${key}.mime`), 'image/png');
+      expect(await readFaviconDataUrl(directory, key)).toBeNull();
+    }
   });
 
   it('fallsBackToOriginFavicon', async () => {

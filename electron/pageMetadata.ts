@@ -12,6 +12,7 @@ export interface ParsedPageMetadata {
 
 const HTML_LIMIT = 400_000;
 const ICON_LIMIT = 128_000;
+const ICON_HEADER_LIMIT = 64;
 const ICON_MIMES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/x-icon', 'image/vnd.microsoft.icon']);
 type FetchResponse = Awaited<ReturnType<typeof fetch>>;
 
@@ -90,15 +91,14 @@ async function cacheFavicon(iconUrl: string, userDataPath: string, signal: Abort
     const key = createHash('sha256').update(iconUrl).digest('hex');
     const directory = path.join(userDataPath, 'favicons');
     await mkdir(directory, { recursive: true });
-    // Publish each file atomically so readers never receive a partial payload.
+    // Keep MIME and payload in one generation, published by a single rename.
     const temporary = path.join(directory, `${key}.${randomUUID()}.tmp`);
     try {
-      await writeFile(temporary, bytes);
+      const header = Buffer.from(`URLFLOW-FAVICON-1\n${mime}\n${bytes.length}\n`, 'ascii');
+      await writeFile(temporary, Buffer.concat([header, bytes]));
       await rename(temporary, path.join(directory, key));
-      await writeFile(`${temporary}.mime`, mime);
-      await rename(`${temporary}.mime`, path.join(directory, `${key}.mime`));
     } finally {
-      await Promise.allSettled([unlink(temporary), unlink(`${temporary}.mime`)]);
+      await unlink(temporary).catch(() => undefined);
     }
     return key;
   } catch {
@@ -154,15 +154,19 @@ async function readCacheFile(file: string, limit: number): Promise<Buffer | null
 }
 
 export async function readFaviconDataUrl(userDataPath: string, key: string): Promise<string | null> {
-  // Validate before constructing either cache path, including calls over IPC.
+  // Validate before constructing a cache path, including calls over IPC.
   if (typeof key !== 'string' || !/^[a-f0-9]{64}$/.test(key)) return null;
   try {
     const file = path.join(userDataPath, 'favicons', key);
-    const mimeBytes = await readCacheFile(`${file}.mime`, 64);
-    const mime = mimeBytes?.toString('utf8');
-    if (!mime || !ICON_MIMES.has(mime)) return null;
-    const bytes = await readCacheFile(file, ICON_LIMIT);
-    return bytes ? `data:${mime};base64,${bytes.toString('base64')}` : null;
+    const record = await readCacheFile(file, ICON_LIMIT + ICON_HEADER_LIMIT);
+    if (!record) return null;
+    const header = record.subarray(0, ICON_HEADER_LIMIT).toString('utf8')
+      .match(/^URLFLOW-FAVICON-1\n([a-z0-9/.-]+)\n([1-9][0-9]{0,5})\n/);
+    if (!header || !ICON_MIMES.has(header[1])) return null;
+    const payloadLength = Number(header[2]);
+    if (payloadLength > ICON_LIMIT || record.length !== header[0].length + payloadLength) return null;
+    const bytes = record.subarray(header[0].length);
+    return `data:${header[1]};base64,${bytes.toString('base64')}`;
   } catch {
     return null;
   }
