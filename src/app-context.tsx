@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { findMatches } from '../shared/matching';
 import { buildReviewQueue, type ReviewEntry } from '../shared/review';
+import { normalizePreferences } from '../shared/preferences';
 import {
   emptyState,
   type AnyItem,
@@ -80,7 +81,7 @@ interface AppContextValue {
   archiveItem: (id: string, success: string) => Promise<AppState | null>;
   restoreItem: (id: string, success: string) => Promise<AppState | null>;
   run: <T>(promise: Promise<T>, options?: { success?: string }) => Promise<T | null>;
-  setPref: (key: keyof Preferences, value: boolean) => Promise<void>;
+  setPref: <K extends keyof Preferences>(key: K, value: Preferences[K]) => Promise<void>;
   editor: EditorRequest | null;
   openEditor: (request: EditorRequest) => void;
   closeEditor: () => void;
@@ -101,7 +102,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(emptyState);
   const [loading, setLoading] = useState(true);
-  const [prefs, setPrefs] = useState<Preferences>({ closeToTray: true });
+  const [prefs, setPrefs] = useState<Preferences>(() => normalizePreferences(undefined));
   const [view, setView] = useState<View>({ name: 'dashboard' });
   const [search, setSearch] = useState('');
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -322,7 +323,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const setPref = useCallback(
-    async (key: keyof Preferences, value: boolean) => {
+    async <K extends keyof Preferences,>(key: K, value: Preferences[K]) => {
       try {
         const next = await api.setPreference(key, value);
         setPrefs(next);

@@ -1,10 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { FlowApi } from '../shared/types';
+import type { FlowApi, Preferences } from '../shared/types';
 
 const api: FlowApi = {
   load: () => ipcRenderer.invoke('state:load'),
   getPreferences: () => ipcRenderer.invoke('prefs:get'),
-  setPreference: (key, value) => ipcRenderer.invoke('prefs:set', { key, value }),
+  setPreference: <K extends keyof Preferences>(key: K, value: Preferences[K]) =>
+    ipcRenderer.invoke('prefs:set', { key, value }),
   create: (draft) => ipcRenderer.invoke('item:create', draft),
   update: (id, patch) => ipcRenderer.invoke('item:update', { id, patch }),
   remove: (id) => ipcRenderer.invoke('item:remove', id),

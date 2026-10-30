@@ -22,6 +22,7 @@ import { createBackup, ensureDailyBackup, listBackups as readBackupList, readBac
 import * as core from '../shared/core';
 import { parseBookmarkFile } from '../shared/bookmarks';
 import { extractUrl, isSafeExternalUrl, normalizeUrl } from '../shared/url';
+import { DEFAULT_PREFERENCES, isInQuietHours, normalizePreferences } from '../shared/preferences';
 import type {
   AppState,
   BookmarkEntry,
@@ -43,7 +44,7 @@ let tray: Tray | null = null;
 let store: Store;
 let isQuitting = false;
 let reminderTimer: NodeJS.Timeout | null = null;
-let prefs: Preferences = { closeToTray: true };
+let prefs: Preferences = normalizePreferences(undefined);
 let prefsPath = '';
 let userDataPath = '';
 let backupTimer: NodeJS.Timeout | null = null;
@@ -83,17 +84,20 @@ app.on('open-url', (event, url) => {
 function loadPreferences(filePath: string): Preferences {
   try {
     const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    return { closeToTray: raw?.closeToTray !== false };
+    return normalizePreferences(raw);
   } catch {
-    return { closeToTray: true };
+    return normalizePreferences(undefined);
   }
 }
 
-function savePreferences(): void {
+function savePreferences(next: Preferences): void {
+  const temporaryPath = `${prefsPath}.tmp`;
   try {
-    fs.writeFileSync(prefsPath, JSON.stringify(prefs, null, 2), 'utf8');
-  } catch (error) {
-    console.error('[prefs] Could not save preferences', error);
+    fs.writeFileSync(temporaryPath, JSON.stringify(next, null, 2), 'utf8');
+    fs.renameSync(temporaryPath, prefsPath);
+  } catch {
+    try { fs.rmSync(temporaryPath, { force: true }); } catch { /* best effort */ }
+    throw new Error('Could not save preferences. Check that the data folder is writable.');
   }
 }
 
@@ -238,10 +242,18 @@ function createTray(): void {
   const image = nativeImage.createFromPath(iconPath).resize({ width: 32, height: 32 });
   tray = new Tray(image);
   tray.setToolTip('URL Flow');
+  refreshTrayMenu();
+  refreshTrayTooltip();
+  tray.on('click', () => showWindow());
+  tray.on('double-click', () => showWindow());
+}
+
+function refreshTrayMenu(): void {
+  if (!tray) return;
   const menu = Menu.buildFromTemplate([
     {
       label: 'Save link from clipboard',
-      accelerator: 'CommandOrControl+Shift+Space',
+      accelerator: prefs.captureShortcut,
       registerAccelerator: false,
       click: () => requestCapture(),
     },
@@ -256,10 +268,7 @@ function createTray(): void {
       },
     },
   ]);
-  refreshTrayTooltip();
   tray.setContextMenu(menu);
-  tray.on('click', () => showWindow());
-  tray.on('double-click', () => showWindow());
 }
 
 function showNotification(title: string, body: string, itemId?: string): void {
@@ -268,7 +277,7 @@ function showNotification(title: string, body: string, itemId?: string): void {
     title,
     body,
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
-    silent: false,
+    silent: !prefs.reminderSound,
   });
   notification.on('click', () => {
     if (itemId) focusItem(itemId);
@@ -279,6 +288,10 @@ function showNotification(title: string, body: string, itemId?: string): void {
 
 function tickReminders(): void {
   if (!store) return;
+  if (isInQuietHours(new Date(), prefs.quietHoursStart, prefs.quietHoursEnd)) {
+    refreshTrayTooltip();
+    return;
+  }
   const due = core.dueReminders(store.get());
   if (due.length === 0) {
     refreshTrayTooltip();
@@ -313,11 +326,35 @@ function registerIpc(): void {
   ipcMain.handle('state:load', () => store.get());
 
   ipcMain.handle('prefs:get', () => prefs);
-  ipcMain.handle('prefs:set', (_event, { key, value }: { key: keyof Preferences; value: boolean }) => {
-    if (key === 'closeToTray') {
-      prefs.closeToTray = Boolean(value);
-      savePreferences();
+  ipcMain.handle('prefs:set', (_event, { key, value }: { key: keyof Preferences; value: unknown }) => {
+    if (!Object.hasOwn(DEFAULT_PREFERENCES, key) || typeof value !== typeof DEFAULT_PREFERENCES[key]) {
+      throw new Error('Invalid preference value.');
     }
+    const next = normalizePreferences({ ...prefs, [key]: value });
+    if (key === 'captureShortcut' && next.captureShortcut !== String(value).trim()) {
+      throw new Error('Enter a valid capture shortcut.');
+    }
+    if (JSON.stringify(next) === JSON.stringify(prefs)) return prefs;
+    if (next.captureShortcut !== prefs.captureShortcut) {
+      const previous = prefs.captureShortcut;
+      try { globalShortcut.unregister(previous); } catch { /* invalid saved accelerator was never registered */ }
+      try {
+        let registered = false;
+        try { registered = globalShortcut.register(next.captureShortcut, requestCapture); } catch { /* invalid accelerator */ }
+        if (!registered) throw new Error('That capture shortcut is invalid or in use. Choose another shortcut.');
+        savePreferences(next);
+      } catch (error) {
+        try { globalShortcut.unregister(next.captureShortcut); } catch { /* invalid candidate was never registered */ }
+        try {
+          if (!globalShortcut.register(previous, requestCapture)) console.warn('[capture] Could not restore the previous shortcut.');
+        } catch { console.warn('[capture] Could not restore the previous shortcut.'); }
+        throw error;
+      }
+    } else {
+      savePreferences(next);
+    }
+    prefs = next;
+    refreshTrayMenu();
     return prefs;
   });
 
@@ -589,9 +626,10 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(menu);
   window?.setMenuBarVisibility(false);
 
-  const registered = globalShortcut.register('CommandOrControl+Shift+Space', requestCapture);
+  let registered = false;
+  try { registered = globalShortcut.register(prefs.captureShortcut, requestCapture); } catch { /* invalid saved accelerator */ }
   if (!registered) {
-    console.warn('[capture] Could not register Ctrl+Shift+Space — another app may own it.');
+    console.warn(`[capture] Could not register ${prefs.captureShortcut} — another app may own it.`);
   }
 
   reminderTimer = setInterval(tickReminders, 15_000);

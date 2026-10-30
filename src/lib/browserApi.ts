@@ -1,6 +1,7 @@
 import * as core from '../../shared/core';
 import { parseBookmarkFile } from '../../shared/bookmarks';
 import { isSafeExternalUrl } from '../../shared/url';
+import { DEFAULT_PREFERENCES, isInQuietHours, normalizePreferences } from '../../shared/preferences';
 import {
   emptyState,
   type AppState,
@@ -69,6 +70,7 @@ function mutate(fn: (current: AppState) => AppState): AppState {
 }
 
 function tick(): void {
+  if (isInQuietHours(new Date(), prefs.quietHoursStart, prefs.quietHoursEnd)) return;
   const due = core.dueReminders(state);
   if (due.length === 0) return;
   let next = state;
@@ -76,7 +78,7 @@ function tick(): void {
     next = core.markReminderNotified(next, reminder.id);
     try {
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        new Notification('Reminder · URL Flow', { body: reminder.text });
+        new Notification('Reminder · URL Flow', { body: reminder.text, silent: !prefs.reminderSound });
       }
     } catch {
       /* ignore */
@@ -93,9 +95,9 @@ function ensureTimer(): void {
 function readPrefs(): Preferences {
   try {
     const raw = localStorage.getItem(PREFS_KEY);
-    return { closeToTray: raw ? JSON.parse(raw)?.closeToTray !== false : true };
+    return normalizePreferences(raw ? JSON.parse(raw) : undefined);
   } catch {
-    return { closeToTray: true };
+    return normalizePreferences(undefined);
   }
 }
 
@@ -108,8 +110,15 @@ export const browserApi: FlowApi = {
   },
   getPreferences: async () => prefs,
   setPreference: async (key, value) => {
-    prefs = { ...prefs, [key]: value };
-    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    if (!Object.hasOwn(DEFAULT_PREFERENCES, key) || typeof value !== typeof DEFAULT_PREFERENCES[key]) {
+      throw new Error('Invalid preference value.');
+    }
+    const next = normalizePreferences({ ...prefs, [key]: value });
+    if (key === 'captureShortcut' && next.captureShortcut !== String(value).trim()) {
+      throw new Error('Enter a valid capture shortcut.');
+    }
+    localStorage.setItem(PREFS_KEY, JSON.stringify(next));
+    prefs = next;
     return prefs;
   },
   create: async (draft) => mutate((current) => core.createItem(current, draft).state),
@@ -210,7 +219,7 @@ export const browserApi: FlowApi = {
   revealDataFile: async () => undefined,
   testNotification: async () => {
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      new Notification('URL Flow', { body: 'Reminders will appear like this.' });
+      new Notification('URL Flow', { body: 'Reminders will appear like this.', silent: !prefs.reminderSound });
     }
   },
   undo: async () => {

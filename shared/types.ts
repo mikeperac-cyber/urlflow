@@ -131,6 +131,10 @@ export type ItemPatch = Partial<
 
 export interface Preferences {
   closeToTray: boolean;
+  captureShortcut: string;
+  reminderSound: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
 }
 
 /** How a pairwise merge should resolve fields that differ between the two items. */
@@ -179,7 +183,7 @@ export interface CapturePayload {
 export interface FlowApi {
   load: () => Promise<AppState>;
   getPreferences: () => Promise<Preferences>;
-  setPreference: (key: keyof Preferences, value: boolean) => Promise<Preferences>;
+  setPreference: <K extends keyof Preferences>(key: K, value: Preferences[K]) => Promise<Preferences>;
   create: (draft: ItemDraft) => Promise<AppState>;
   update: (id: string, patch: ItemPatch) => Promise<AppState>;
   remove: (id: string) => Promise<AppState>;

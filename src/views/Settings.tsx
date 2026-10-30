@@ -36,6 +36,12 @@ export function SettingsView() {
   const [restoring, setRestoring] = useState<BackupInfo | null>(null);
   const [bookmarkFile, setBookmarkFile] = useState<BookmarkFile | null>(null);
   const [picking, setPicking] = useState(false);
+  const [captureShortcut, setCaptureShortcut] = useState(prefs.captureShortcut);
+  const [savingShortcut, setSavingShortcut] = useState(false);
+
+  useEffect(() => {
+    setCaptureShortcut(prefs.captureShortcut);
+  }, [prefs.captureShortcut]);
 
   const loadBackups = useCallback(async () => {
     if (!isDesktop) return;
@@ -209,9 +215,9 @@ export function SettingsView() {
         <header className="panel__head">
           <div>
             <h3>
-              <Bell size={16} /> Reminders &amp; window
+              <Bell size={16} /> Capture, reminders &amp; window
             </h3>
-            <p>Control how URL Flow behaves when you close it.</p>
+            <p>Choose how you capture links and receive reminders.</p>
           </div>
         </header>
         <div className="panel__body">
@@ -226,6 +232,7 @@ export function SettingsView() {
             <label className="switch">
               <input
                 type="checkbox"
+                aria-label="Keep running in the system tray"
                 checked={prefs.closeToTray}
                 onChange={(event) => void setPref('closeToTray', event.target.checked)}
               />
@@ -233,6 +240,55 @@ export function SettingsView() {
                 <span className="switch__thumb" />
               </span>
             </label>
+          </div>
+          <div className="settings-row">
+            <div>
+              <strong>Capture shortcut</strong>
+              <span>Save the link on your clipboard from any app. For example, Control+Alt+K.</span>
+            </div>
+            <form className="settings-row__actions" onSubmit={async (event) => {
+              event.preventDefault();
+              if (savingShortcut || !captureShortcut.trim()) return;
+              setSavingShortcut(true);
+              try { await setPref('captureShortcut', captureShortcut.trim()); }
+              finally { setSavingShortcut(false); }
+            }}>
+              <input className="input" aria-label="Capture shortcut" value={captureShortcut}
+                maxLength={100} disabled={savingShortcut}
+                onChange={(event) => setCaptureShortcut(event.target.value)} />
+              <Button type="submit" variant="subtle" size="sm"
+                disabled={savingShortcut || !captureShortcut.trim() || captureShortcut.trim() === prefs.captureShortcut}>
+                {savingShortcut ? 'Saving…' : 'Save shortcut'}
+              </Button>
+            </form>
+          </div>
+          <div className="settings-row">
+            <div>
+              <strong>Reminder sound</strong>
+              <span>Play a sound with reminder notifications.</span>
+            </div>
+            <label className="switch">
+              <input type="checkbox" aria-label="Reminder sound" checked={prefs.reminderSound}
+                onChange={(event) => void setPref('reminderSound', event.target.checked)} />
+              <span className="switch__track"><span className="switch__thumb" /></span>
+            </label>
+          </div>
+          <div className="settings-row">
+            <div>
+              <strong>Quiet hours</strong>
+              <span>Use this computer’s local time. Due reminders wait until quiet hours end. Leave either time empty to turn this off.</span>
+            </div>
+            <form className="settings-row__actions" aria-label="Quiet hours" onSubmit={(event) => event.preventDefault()}>
+              <label>From <input className="input" type="time" aria-label="Quiet hours start"
+                value={prefs.quietHoursStart} onChange={(event) => void setPref('quietHoursStart', event.target.value)} /></label>
+              <label>Until <input className="input" type="time" aria-label="Quiet hours end"
+                value={prefs.quietHoursEnd} onChange={(event) => void setPref('quietHoursEnd', event.target.value)} /></label>
+              <Button variant="ghost" size="sm" disabled={!prefs.quietHoursStart && !prefs.quietHoursEnd}
+                onClick={async () => {
+                  await setPref('quietHoursStart', '');
+                  await setPref('quietHoursEnd', '');
+                }}>Turn off</Button>
+            </form>
           </div>
           <div className="settings-row">
             <div>
@@ -245,7 +301,7 @@ export function SettingsView() {
           </div>
           {!isDesktop ? (
             <p className="muted">
-              Tray behaviour and Windows notifications are available in the installed desktop app.
+              Global capture shortcuts, tray behaviour and Windows notifications are available in the installed desktop app.
             </p>
           ) : null}
         </div>
@@ -280,7 +336,7 @@ export function SettingsView() {
             </div>
             {isDesktop ? (
               <div>
-                <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd>
+                <kbd>{prefs.captureShortcut}</kbd>
                 <span>Save the link on your clipboard from anywhere</span>
               </div>
             ) : null}
