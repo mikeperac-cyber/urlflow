@@ -41,14 +41,26 @@ export function PlanBadge({ planId }: { planId: string | null }) {
   );
 }
 
-export function LinkCard({ link, compact = false }: { link: LinkItem; compact?: boolean }) {
+export function LinkCard({ link, compact = false, selected = false, selectionDisabled = false, onSelectedChange }: {
+  link: LinkItem;
+  compact?: boolean;
+  selected?: boolean;
+  selectionDisabled?: boolean;
+  onSelectedChange?: (selected: boolean) => void;
+}) {
   const { api, run, openEditor, plans, remindersById, pushToast, archiveItem } = useApp();
   const plan = plans.find((entry) => entry.id === link.planId);
   const reminder = remindersById.get(link.id);
 
   return (
-    <article className="link-card" data-item-id={link.id} onClick={() => openEditor({ kind: 'link', item: link })}>
+    <article className={`link-card${onSelectedChange && selected ? ' is-selected' : ''}`} data-item-id={link.id} onClick={() => openEditor({ kind: 'link', item: link })}>
       <div className="link-card__head">
+        {onSelectedChange ? (
+          <input type="checkbox" className="link-card__select" aria-label={`Select ${link.title}`}
+            checked={selected} disabled={selectionDisabled}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => onSelectedChange(event.target.checked)} />
+        ) : null}
         <Favicon url={link.url} faviconKey={link.faviconKey} />
         <div className="link-card__identity">
           <h3 title={link.title}>

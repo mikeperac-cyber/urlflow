@@ -1515,6 +1515,20 @@ button.badge:hover {
   transform: scale(0.995);
 }
 
+.link-card.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.link-card__select {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 .link-card__head {
   display: flex;
   align-items: center;
@@ -2994,6 +3008,43 @@ button.badge:hover {
   min-width: 142px;
   height: 34px;
   font-size: 13px;
+}
+
+.link-bulk {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.link-bulk__selection,
+.link-bulk__actions,
+.link-bulk__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.link-bulk__count {
+  margin-right: auto;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.link-bulk__actions {
+  gap: 12px;
+}
+
+.link-bulk__group .input {
+  width: 220px;
+  max-width: 100%;
+  height: 32px;
+  font-size: 12px;
 }
 
 .quick-add {

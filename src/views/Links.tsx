@@ -2,21 +2,69 @@ import { useMemo, useState } from 'react';
 import { ClipboardPaste, Link2, Plus, Search } from 'lucide-react';
 import { extractUrl } from '../../shared/url';
 import { isReadingState } from '../../shared/core';
-import type { ReadingState } from '../../shared/types';
+import { matchKey, type LinkBulkAction, type ReadingState } from '../../shared/types';
 import { useApp } from '../app-context';
 import { LinkCard } from '../components/items';
+import { LinkBulkToolbar } from '../components/LinkBulkToolbar';
 import { Button, EmptyState, Segmented, TagPill } from '../components/ui';
 
 type Filter = 'all' | 'favorites' | 'unfiled';
 type Sort = 'newest' | 'title' | 'opened';
 
 export function LinksView() {
-  const { links, search, openEditor, api, pushToast } = useApp();
+  const { links, matches, plans, search, openEditor, api, run, pushToast, showUndoToast } = useApp();
   const [filter, setFilter] = useState<Filter>('all');
   const [readingState, setReadingState] = useState<ReadingState | 'all'>('all');
   const [sort, setSort] = useState<Sort>('newest');
   const [tag, setTag] = useState<string | null>(null);
   const [pasting, setPasting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  const ignoredPairKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const group of matches.duplicates) {
+      if (!group.ids.some((id) => selected.has(id))) continue;
+      const ids = [...new Set(group.ids)];
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) keys.add(matchKey(ids[i], ids[j]));
+      }
+    }
+    return [...keys].sort();
+  }, [matches.duplicates, selected]);
+
+  async function triageSelection(action: LinkBulkAction): Promise<boolean> {
+    if (bulkBusy || selected.size === 0) return false;
+    if (action.type === 'ignore-matches' && ignoredPairKeys.length === 0) return false;
+    setBulkBusy(true);
+    try {
+      const result = await run(api.bulkTriage([...selected], action.type === 'ignore-matches'
+        ? { type: 'ignore-matches', keys: ignoredPairKeys } : action));
+      if (!result) return false;
+      setSelected(new Set());
+      const message = action.type === 'add-tags' ? 'Tags added to selected links'
+        : action.type === 'assign-plan' ? (action.planId ? 'Selected links assigned to plan' : 'Plan cleared from selected links')
+        : action.type === 'archive' ? 'Selected links archived' : 'Selected match groups ignored';
+      showUndoToast(message);
+      return true;
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function openSelection() {
+    if (bulkBusy || selected.size === 0) return;
+    setBulkBusy(true);
+    try {
+      const result = await run(api.openLinks([...selected]));
+      if (result) {
+        setSelected(new Set());
+        showUndoToast('Selected links opened');
+      }
+    } finally {
+      setBulkBusy(false);
+    }
+  }
 
   const allTags = useMemo(() => {
     const counts = new Map<string, number>();
@@ -126,6 +174,11 @@ export function LinksView() {
         </div>
       ) : null}
 
+      <LinkBulkToolbar count={selected.size} visibleCount={filtered.length} plans={plans} busy={bulkBusy}
+        canIgnore={ignoredPairKeys.length > 0}
+        onSelectVisible={() => setSelected((current) => new Set([...current, ...filtered.map((link) => link.id)]))}
+        onClear={() => setSelected(new Set())} onTriage={triageSelection} onOpen={openSelection} />
+
       {filtered.length === 0 ? (
         search.trim() || tag || filter !== 'all' || readingState !== 'all' ? (
           <EmptyState
@@ -161,7 +214,13 @@ export function LinksView() {
       ) : (
         <div className="card-grid">
           {filtered.map((link) => (
-            <LinkCard key={link.id} link={link} />
+            <LinkCard key={link.id} link={link} selected={selected.has(link.id)} selectionDisabled={bulkBusy}
+              onSelectedChange={(checked) => setSelected((current) => {
+                const next = new Set(current);
+                if (checked) next.add(link.id);
+                else next.delete(link.id);
+                return next;
+              })} />
           ))}
         </div>
       )}
