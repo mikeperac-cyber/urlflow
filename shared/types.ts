@@ -2,6 +2,8 @@ export type ItemKind = 'link' | 'plan' | 'task' | 'note';
 
 export type Priority = 'low' | 'normal' | 'high';
 
+export type ReadingState = 'unread' | 'later' | 'read';
+
 export type PlanStatus = 'active' | 'paused' | 'done';
 
 export type RepeatRule = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly';
@@ -40,6 +42,7 @@ export interface BaseItem {
 
 export interface LinkItem extends BaseItem {
   kind: 'link';
+  readingState: ReadingState;
   url: string;
   favorite: boolean;
   lastOpenedAt: string | null;
@@ -94,6 +97,7 @@ export interface ItemDraft {
   planId?: string | null;
   url?: string;
   favorite?: boolean;
+  readingState?: ReadingState;
   description?: string | null;
   siteName?: string | null;
   faviconKey?: string | null;

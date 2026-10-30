@@ -12,12 +12,17 @@ import {
   type NoteItem,
   type PlanItem,
   type Priority,
+  type ReadingState,
   type Reminder,
   type RepeatRule,
   type Step,
   type TaskItem,
 } from './types';
 import { displayUrl, isSafeExternalUrl, normalizeUrl } from './url';
+
+export function isReadingState(value: unknown): value is ReadingState {
+  return value === 'unread' || value === 'later' || value === 'read';
+}
 
 export function nowIso(): string {
   return new Date().toISOString();
@@ -118,6 +123,7 @@ export function createItem(state: AppState, draft: ItemDraft): { state: AppState
         ...base,
         ...cleanLinkEnrichment(draft),
         kind: 'link',
+        readingState: isReadingState(draft.readingState) ? draft.readingState : 'unread',
         title: base.title || normalized.key.replace(/^https?:\/\//, ''),
         url,
         favorite: Boolean(draft.favorite),
@@ -188,6 +194,9 @@ export function updateItem(state: AppState, id: string, patch: ItemPatch): AppSt
 
   if (updated.kind === 'link' && existing.kind === 'link') {
     Object.assign(updated, cleanLinkEnrichment(patch));
+    if (patch.readingState !== undefined) {
+      updated.readingState = isReadingState(patch.readingState) ? patch.readingState : 'unread';
+    }
     if (patch.url !== undefined) {
       const normalized = normalizeUrl(patch.url);
       if (!normalized.url || !isSafeExternalUrl(normalized.url)) {
@@ -294,6 +303,11 @@ export function mergeItems(
   }
 
   if (merged.kind === 'link' && primary.kind === 'link' && other.kind === 'link') {
+    merged.readingState = primary.readingState === 'unread' || other.readingState === 'unread'
+      ? 'unread'
+      : primary.readingState === 'later' || other.readingState === 'later'
+        ? 'later'
+        : 'read';
     merged.url = primary.url || other.url;
     merged.favorite = primary.favorite || other.favorite;
     merged.lastOpenedAt = primary.lastOpenedAt ?? other.lastOpenedAt;
@@ -598,6 +612,7 @@ export function importBookmarks(
       updatedAt: timestamp,
       url: normalized.url,
       favorite: false,
+      readingState: 'unread',
       lastOpenedAt: null,
     });
   }
@@ -656,6 +671,7 @@ export function normalizeState(raw: unknown): AppState {
         ...base,
         ...cleanLinkEnrichment(item),
         kind: 'link',
+        readingState: isReadingState(item.readingState) ? item.readingState : 'unread',
         url: normalized.url,
         favorite: Boolean(item.favorite),
         lastOpenedAt: typeof item.lastOpenedAt === 'string' ? item.lastOpenedAt : null,
