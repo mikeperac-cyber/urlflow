@@ -6,6 +6,7 @@
   "author": "URL Flow",
   "main": "dist-electron/main.cjs",
   "scripts": {
+    "test": "vitest",
     "dev": "node scripts/dev.mjs",
     "build": "vite build && node scripts/build-electron.mjs",
     "start": "electron .",
@@ -20,6 +21,7 @@
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -27,8 +29,10 @@
     "electron": "^45.0.0",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",
+    "jsdom": "^30.1.3",
     "typescript": "^7.0.2",
-    "vite": "^8.3.5"
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   },
   "build": {
     "appId": "com.urlflow.desktop",
