@@ -214,6 +214,7 @@ export interface FlowApi {
   onState: (cb: (state: AppState) => void) => () => void;
   onHistory: (cb: (status: HistoryStatus) => void) => () => void;
   onFocusItem: (cb: (itemId: string) => void) => () => void;
+  /** Subscribes before acknowledging capture readiness; cleanup pauses queued delivery. */
   onCapture: (cb: (payload: CapturePayload) => void) => () => void;
 }
 

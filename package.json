@@ -37,6 +37,7 @@
   "build": {
     "appId": "com.urlflow.desktop",
     "productName": "URL Flow",
+    "protocols": [{ "name": "URL Flow capture", "schemes": ["urlflow"] }],
     "directories": {
       "output": "release",
       "buildResources": "build"

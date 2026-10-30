@@ -3,13 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppProvider, useApp } from '../../src/app-context';
 import { ItemDialog } from '../../src/components/ItemDialog';
 import { LinksView } from '../../src/views/Links';
-import { emptyState, type AppState, type LinkMetadata } from '../../shared/types';
+import { emptyState, type AppState, type CapturePayload, type LinkMetadata } from '../../shared/types';
 import * as core from '../../shared/core';
 
 const boundary = vi.hoisted(() => ({
   fetchMetadata: vi.fn(), fetchTitle: vi.fn(), readFavicon: vi.fn(), readClipboard: vi.fn(),
   state: null as AppState | null,
-  capture: null as ((payload: { url: string | null }) => void) | null,
+  capture: null as ((payload: CapturePayload) => void) | null,
 }));
 vi.mock('../../src/lib/api', async () => {
   const { browserApi } = await import('../../src/lib/browserApi');
@@ -48,6 +48,31 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe('rich link integration', () => {
+  it('protocolCaptureOpensADialogWithoutSavingAndPreservesTheSuppliedTitle', async () => {
+    await mount();
+    await act(async () => { boundary.capture!({ url: 'https://example.com/article', title: 'Browser title', mode: 'dialog', requestId: 'first' }); });
+    expect(input('Web address').value).toBe('https://example.com/article');
+    expect(input('Title').value).toBe('Browser title');
+    expect(boundary.state!.items).toHaveLength(0);
+    await settleMetadata();
+    expect(input('Title').value).toBe('Browser title');
+    expect(within(screen.getByRole('dialog')).getByText(page.description!)).toBeTruthy();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Create link' })); });
+    expect(boundary.state!.items[0]).toMatchObject({ title: 'Browser title', description: page.description, siteName: page.siteName, faviconKey: page.faviconKey });
+  });
+
+  it('eachProtocolRequestResetsTheDialogEvenForTheSameUrl', async () => {
+    await mount();
+    const payload = { url: 'https://example.com/article', mode: 'dialog' as const };
+    await act(async () => { boundary.capture!({ ...payload, title: 'First', requestId: 'first' }); });
+    fireEvent.change(input('Notes'), { target: { value: 'Old draft notes' } });
+    fireEvent.change(input('Title'), { target: { value: 'Edited first title' } });
+    await act(async () => { boundary.capture!({ ...payload, title: 'Second', requestId: 'second' }); });
+    expect(input('Title').value).toBe('Second');
+    expect(input('Notes').value).toBe('');
+    expect(boundary.state!.items).toHaveLength(0);
+  });
+
   it('previewsAndSavesMetadataWithoutOverwritingAnEditedTitle', async () => {
     await mount();
     fireEvent.click(screen.getByText('New link'));

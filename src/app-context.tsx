@@ -31,6 +31,7 @@ import type { View, ViewName } from './lib/navigation';
 
 export interface EditorRequest {
   kind: ItemKind;
+  requestId?: string;
   item?: AnyItem;
   preset?: Partial<ItemDraft>;
   // Undefined requests a preview; null records a completed, unsuccessful fetch.
@@ -254,11 +255,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [redo, undo]);
 
-  // The tray and the global shortcut hand us a URL from the clipboard.
+  // Protocol captures open the editor; tray/shortcut captures save directly.
   useEffect(() => {
-    return api.onCapture(({ url }) => {
+    return api.onCapture(({ url, title, mode, requestId }) => {
       if (!url) {
         pushToast('Copy a link first, then try again', 'error');
+        return;
+      }
+      if (mode === 'dialog') {
+        setEditor({ kind: 'link', preset: { url, title }, requestId });
         return;
       }
       void (async () => {

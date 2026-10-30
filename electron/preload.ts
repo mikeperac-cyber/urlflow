@@ -58,7 +58,11 @@ const api: FlowApi = {
   onCapture: (callback) => {
     const listener = (_event: unknown, payload: Parameters<typeof callback>[0]) => callback(payload);
     ipcRenderer.on('app:capture', listener);
-    return () => ipcRenderer.removeListener('app:capture', listener);
+    ipcRenderer.send('app:capture-ready', true);
+    return () => {
+      ipcRenderer.removeListener('app:capture', listener);
+      if (ipcRenderer.listenerCount('app:capture') === 0) ipcRenderer.send('app:capture-ready', false);
+    };
   },
 };
 

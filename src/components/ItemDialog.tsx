@@ -33,7 +33,7 @@ const PRIORITIES: { value: Priority; label: string }[] = [
 export function ItemDialog() {
   const { editor } = useApp();
   if (!editor) return null;
-  return <ItemDialogInner key={editor.item?.id ?? `new-${editor.kind}`} />;
+  return <ItemDialogInner key={editor.requestId ?? editor.item?.id ?? `new-${editor.kind}`} />;
 }
 
 function ItemDialogInner() {

@@ -14,6 +14,8 @@ import {
 import fs from 'node:fs';
 import path from 'node:path';
 import { Store } from './store';
+import { CaptureQueue } from './captureQueue';
+import { parseCaptureProtocol } from './deepLink';
 import { fetchPageMetadata, readFaviconDataUrl } from './pageMetadata';
 import { createBackup, ensureDailyBackup, listBackups as readBackupList, readBackup } from './backups';
 import * as core from '../shared/core';
@@ -22,7 +24,6 @@ import { extractUrl, isSafeExternalUrl, normalizeUrl } from '../shared/url';
 import type {
   AppState,
   BookmarkEntry,
-  CapturePayload,
   ItemDraft,
   ItemPatch,
   MergeFieldChoices,
@@ -44,13 +45,38 @@ let prefs: Preferences = { closeToTray: true };
 let prefsPath = '';
 let userDataPath = '';
 let backupTimer: NodeJS.Timeout | null = null;
+const captureQueue = new CaptureQueue();
 
 app.setName('URL Flow');
 if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
 
-if (!app.requestSingleInstanceLock()) {
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) {
   app.quit();
 }
+
+if (hasSingleInstanceLock) {
+  if (process.defaultApp && process.argv[1]) {
+    app.setAsDefaultProtocolClient('urlflow', process.execPath, [path.resolve(process.argv[1])]);
+  } else {
+    app.setAsDefaultProtocolClient('urlflow');
+  }
+}
+
+function captureProtocol(raw: string): void {
+  const payload = parseCaptureProtocol(raw);
+  if (!payload) return;
+  captureQueue.enqueue(payload);
+  if (app.isReady()) showWindow();
+}
+
+// Windows passes the initial URL before a BrowserWindow or subscriber exists.
+for (const argument of process.argv) captureProtocol(argument);
+
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  captureProtocol(url);
+});
 
 function loadPreferences(filePath: string): Preferences {
   try {
@@ -139,13 +165,11 @@ async function requestCapture(): Promise<void> {
   showWindow();
   if (!window || window.isDestroyed()) return;
   const url = extractUrl(await clipboard.readText());
-  const payload: CapturePayload = { url };
-  const send = () => window?.webContents.send('app:capture', payload);
-  if (window.webContents.isLoading()) window.webContents.once('did-finish-load', send);
-  else send();
+  captureQueue.enqueue({ url, mode: 'clipboard' });
 }
 
 function createWindow(): void {
+  captureQueue.setDelivery(null);
   window = new BrowserWindow({
     width: 1440,
     height: 920,
@@ -177,8 +201,12 @@ function createWindow(): void {
   });
 
   window.on('closed', () => {
+    captureQueue.setDelivery(null);
     window = null;
   });
+
+  window.webContents.on('did-start-loading', () => captureQueue.setDelivery(null));
+  window.webContents.on('render-process-gone', () => captureQueue.setDelivery(null));
 
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (isSafeExternalUrl(url)) void shell.openExternal(url);
@@ -274,6 +302,12 @@ async function fetchPageTitle(rawUrl: string): Promise<string | null> {
 }
 
 function registerIpc(): void {
+  ipcMain.on('app:capture-ready', (event, ready: unknown) => {
+    const contents = window?.webContents;
+    if (!contents || event.sender !== contents || event.senderFrame !== contents.mainFrame) return;
+    captureQueue.setDelivery(ready === true ? (payload) => contents.send('app:capture', payload) : null);
+  });
+
   ipcMain.handle('state:load', () => store.get());
 
   ipcMain.handle('prefs:get', () => prefs);
@@ -482,11 +516,13 @@ function registerIpc(): void {
   });
 }
 
-app.on('second-instance', () => {
-  showWindow();
+app.on('second-instance', (_event, argv) => {
+  for (const argument of argv) captureProtocol(argument);
+  if (app.isReady()) showWindow();
 });
 
 app.whenReady().then(() => {
+  if (!hasSingleInstanceLock) return;
   userDataPath = app.getPath('userData');
   prefsPath = path.join(userDataPath, 'preferences.json');
   prefs = loadPreferences(prefsPath);
