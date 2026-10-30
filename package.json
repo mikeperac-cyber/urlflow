@@ -1,0 +1,68 @@
+{
+  "name": "url-flow",
+  "version": "1.0.0",
+  "private": true,
+  "description": "URL Flow - track links, plan work, and manage tasks, notes, reminders, matches and archives.",
+  "author": "URL Flow",
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "vite build && node scripts/build-electron.mjs",
+    "start": "electron .",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
+    "dist": "npm run build && electron-builder --win",
+    "dist:portable": "npm run build && electron-builder --win portable",
+    "icons": "node scripts/make-icons.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "^1.61.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "electron": "^45.0.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  },
+  "build": {
+    "appId": "com.urlflow.desktop",
+    "productName": "URL Flow",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "electronDist": "node_modules/electron/dist",
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "URL Flow",
+      "artifactName": "URL-Flow-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "URL-Flow-Portable-${version}.${ext}"
+    }
+  }
+}
