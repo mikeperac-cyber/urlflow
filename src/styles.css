@@ -1544,6 +1544,46 @@ button.badge:hover {
   font-size: 9.5px;
 }
 
+.favicon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: inherit;
+}
+
+.link-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.link-preview__body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.link-preview__site,
+.link-card__site {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.link-card__site {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-preview__description {
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .link-card__identity {
   flex: 1;
   min-width: 0;
@@ -1603,7 +1643,8 @@ button.badge:hover {
   fill: color-mix(in srgb, var(--note) 22%, transparent);
 }
 
-.link-card__notes {
+.link-card__notes,
+.link-card__description {
   font-size: 12.5px;
   color: var(--muted);
   line-height: 1.45;
@@ -1611,6 +1652,7 @@ button.badge:hover {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .card-tags {

@@ -18,6 +18,7 @@ import { displayUrl, faviconTone, initialsFor } from '../../shared/url';
 import { useApp } from '../app-context';
 import { dueInfo, formatDate, relativeTime, reminderInfo } from '../lib/dates';
 import { Confirm, IconButton, Progress, TagPill } from './ui';
+import { Favicon } from './Favicon';
 
 export function PlanBadge({ planId }: { planId: string | null }) {
   const { plans, navigate } = useApp();
@@ -48,9 +49,7 @@ export function LinkCard({ link, compact = false }: { link: LinkItem; compact?: 
   return (
     <article className="link-card" data-item-id={link.id} onClick={() => openEditor({ kind: 'link', item: link })}>
       <div className="link-card__head">
-        <div className="favicon" style={{ background: faviconTone(link.url) }}>
-          {initialsFor(displayUrl(link.url))}
-        </div>
+        <Favicon url={link.url} faviconKey={link.faviconKey} />
         <div className="link-card__identity">
           <h3 title={link.title}>
             <button
@@ -64,6 +63,7 @@ export function LinkCard({ link, compact = false }: { link: LinkItem; compact?: 
               {link.title}
             </button>
           </h3>
+          {link.siteName ? <span className="link-card__site" title={link.siteName}>{link.siteName}</span> : null}
           <span className="link-card__url" title={link.url}>
             {displayUrl(link.url)}
           </span>
@@ -82,6 +82,7 @@ export function LinkCard({ link, compact = false }: { link: LinkItem; compact?: 
         </div>
       </div>
 
+      {!compact && link.description ? <p className="link-card__description">{link.description}</p> : null}
       {!compact && link.notes ? <p className="link-card__notes">{link.notes}</p> : null}
 
       <div className="card-tags">

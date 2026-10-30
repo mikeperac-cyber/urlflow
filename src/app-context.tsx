@@ -19,6 +19,7 @@ import {
   type HistoryStatus,
   type ItemKind,
   type LinkItem,
+  type LinkMetadata,
   type NoteItem,
   type PlanItem,
   type Preferences,
@@ -32,6 +33,8 @@ export interface EditorRequest {
   kind: ItemKind;
   item?: AnyItem;
   preset?: Partial<ItemDraft>;
+  // Undefined requests a preview; null records a completed, unsuccessful fetch.
+  metadata?: LinkMetadata | null;
 }
 
 export interface ToastAction {
@@ -260,8 +263,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       void (async () => {
         try {
-          const title = await api.fetchTitle(url);
-          const next = await api.create({ kind: 'link', url, title: title ?? '' });
+          const metadata = await api.fetchMetadata(url).catch(() => null);
+          const next = await api.create({
+            kind: 'link', url, title: metadata?.title ?? '',
+            description: metadata?.description, siteName: metadata?.siteName, faviconKey: metadata?.faviconKey,
+          });
           setState(next);
           showUndoToast('Link saved from clipboard');
         } catch (error) {

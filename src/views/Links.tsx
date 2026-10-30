@@ -54,8 +54,8 @@ export function LinksView() {
         pushToast('Your clipboard does not contain a link.', 'error');
         return;
       }
-      const title = await api.fetchTitle(url);
-      openEditor({ kind: 'link', preset: { url, title: title ?? '' } });
+      const metadata = await api.fetchMetadata(url).catch(() => null);
+      openEditor({ kind: 'link', preset: { url, title: metadata?.title ?? '' }, metadata });
     } catch {
       pushToast('Could not read the clipboard.', 'error');
     } finally {

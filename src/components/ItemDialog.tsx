@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Check, Plus, Sparkles, Star, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Check, Plus, Star, Trash2 } from 'lucide-react';
 import {
   PLAN_COLORS,
   type ItemDraft,
@@ -14,6 +14,8 @@ import { hostOf, isSafeExternalUrl, normalizeUrl } from '../../shared/url';
 import { useApp } from '../app-context';
 import { defaultReminderValue, fromDateInput, fromInputValue, toInputValue, tomorrowAt } from '../lib/dates';
 import { Button, Field, IconButton, Modal, Segmented } from './ui';
+import { Favicon } from './Favicon';
+import { usePageMetadata } from './usePageMetadata';
 
 const KIND_OPTIONS: { value: ItemKind; label: string }[] = [
   { value: 'link', label: 'Link' },
@@ -79,7 +81,21 @@ function ItemDialogInner() {
   );
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [fetching, setFetching] = useState(false);
+  const titleEdited = useRef(Boolean(item?.title || (request.metadata === undefined && preset.title)));
+  const normalizedUrl = normalizeUrl(url).url;
+  const initialUrl = normalizeUrl(item?.kind === 'link' ? item.url : preset.url ?? '').url;
+  const usingPrefetched = request.metadata !== undefined && normalizedUrl === initialUrl;
+  const preview = usePageMetadata(kind === 'link' && !usingPrefetched ? url : '', api.fetchMetadata);
+  const metadata = kind !== 'link' ? null : usingPrefetched ? request.metadata ?? null : preview.metadata ?? (
+    normalizedUrl === initialUrl && item?.kind === 'link'
+      ? { title: item.title, description: item.description ?? null, siteName: item.siteName ?? null, faviconKey: item.faviconKey ?? null }
+      : null
+  );
+  const fetching = kind === 'link' && !usingPrefetched && preview.fetching;
+
+  useEffect(() => {
+    if (kind === 'link' && !titleEdited.current) setTitle(metadata?.title ?? '');
+  }, [kind, metadata?.title]);
 
   const planOptions = useMemo(
     () => plans.filter((plan) => plan.id !== item?.id),
@@ -96,23 +112,6 @@ function ItemDialogInner() {
         : kind === 'task'
           ? 'New task'
           : 'New note';
-
-  async function handleFetchTitle() {
-    if (!url.trim()) return;
-    setFetching(true);
-    try {
-      const fetched = await api.fetchTitle(normalizeUrl(url).url);
-      if (fetched) {
-        setTitle((current) => current.trim() || fetched);
-      } else {
-        setError('Could not read a title from that page. You can type one yourself.');
-      }
-    } catch {
-      setError('Could not read a title from that page.');
-    } finally {
-      setFetching(false);
-    }
-  }
 
   function addStep() {
     const text = stepText.trim();
@@ -155,6 +154,9 @@ function ItemDialogInner() {
         if (item.kind === 'link') {
           patch.url = normalizeUrl(urlInput).url;
           patch.favorite = favorite;
+          patch.description = metadata?.description ?? null;
+          patch.siteName = metadata?.siteName ?? null;
+          patch.faviconKey = metadata?.faviconKey ?? null;
         }
         if (item.kind === 'plan') {
           patch.summary = summary;
@@ -199,6 +201,9 @@ function ItemDialogInner() {
       if (kind === 'link') {
         draft.url = normalizeUrl(urlInput).url;
         draft.favorite = favorite;
+        draft.description = metadata?.description ?? null;
+        draft.siteName = metadata?.siteName ?? null;
+        draft.faviconKey = metadata?.faviconKey ?? null;
         if (!cleanTitle) draft.title = hostOf(urlInput) || normalizedFallback(urlInput);
       }
       if (kind === 'plan') {
@@ -282,25 +287,14 @@ function ItemDialogInner() {
         {kind === 'link' ? (
           <div className="field-row">
             <Field label="Web address" hint="Paste any URL — the protocol is added automatically.">
-              <div className="input-with-action">
-                <input
-                  className="input"
-                  value={url}
-                  onChange={(event) => setUrl(event.target.value)}
-                  placeholder="https://example.com/article"
-                  autoFocus
-                  spellCheck={false}
-                />
-                <Button
-                  variant="subtle"
-                  size="sm"
-                  icon={<Sparkles size={13} />}
-                  onClick={() => void handleFetchTitle()}
-                  disabled={fetching || !url.trim()}
-                >
-                  {fetching ? 'Reading…' : 'Fetch title'}
-                </Button>
-              </div>
+              <input
+                className="input"
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                placeholder="https://example.com/article"
+                autoFocus
+                spellCheck={false}
+              />
             </Field>
           </div>
         ) : null}
@@ -309,7 +303,10 @@ function ItemDialogInner() {
           <input
             className="input"
             value={title}
-            onChange={(event) => setTitle(event.target.value)}
+            onChange={(event) => {
+              titleEdited.current = true;
+              setTitle(event.target.value);
+            }}
             placeholder={
               kind === 'plan'
                 ? 'What are you working towards?'
@@ -479,6 +476,19 @@ function ItemDialogInner() {
               ))}
             </select>
           </Field>
+        ) : null}
+
+        {kind === 'link' && normalizedUrl && isSafeExternalUrl(normalizedUrl) ? (
+          <section className="link-preview" aria-label="Link preview" aria-live="polite" aria-busy={fetching}>
+            <Favicon url={url} faviconKey={metadata?.faviconKey} />
+            <div className="link-preview__body">
+              <span className="link-preview__site">{metadata?.siteName || hostOf(url)}</span>
+              {metadata?.description ? <p className="link-preview__description">{metadata.description}</p> : null}
+              {fetching ? <p className="field__hint" role="status">Reading page preview…</p> : !metadata ? (
+                <p className="field__hint" role="status">Preview unavailable. You can still save this link.</p>
+              ) : null}
+            </div>
+          </section>
         ) : null}
 
         <Field label={kind === 'note' ? 'Note' : 'Notes'}>
