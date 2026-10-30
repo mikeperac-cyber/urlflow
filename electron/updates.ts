@@ -3,6 +3,11 @@ import type { AppUpdater } from 'electron-updater';
 
 type Updater = Pick<AppUpdater, 'autoDownload' | 'autoInstallOnAppQuit' | 'allowDowngrade' | 'disableWebInstaller' | 'on' | 'checkForUpdates' | 'quitAndInstall'>;
 
+export async function loadElectronUpdater(): Promise<Updater> {
+  const { default: electronUpdater } = await import('electron-updater');
+  return electronUpdater.autoUpdater;
+}
+
 interface UpdateOptions {
   mode: string;
   packaged: boolean;

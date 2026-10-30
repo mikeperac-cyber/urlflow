@@ -1,6 +1,9 @@
 import { EventEmitter } from 'node:events';
 import { describe, expect, it, vi } from 'vitest';
-import { createUpdateController } from '../../electron/updates';
+import { createUpdateController, loadElectronUpdater } from '../../electron/updates';
+
+const moduleBoundary = vi.hoisted(() => ({ updater: { marker: 'CommonJS autoUpdater getter result' } }));
+vi.mock('electron-updater', () => ({ default: { autoUpdater: moduleBoundary.updater } }));
 
 function setup(mode = 'release', packaged = true, platform = 'win32', portable = false) {
   const updater = Object.assign(new EventEmitter(), {
@@ -15,6 +18,9 @@ function setup(mode = 'release', packaged = true, platform = 'win32', portable =
 }
 
 describe('Windows update controller', () => {
+  it('loadsTheUpdaterFromTheLazyCommonJsDefaultExport', async () => {
+    expect(await loadElectronUpdater()).toBe(moduleBoundary.updater);
+  });
   it('doesNotLoadOrCheckOutsideSignedInstalledReleaseBuilds', async () => {
     for (const boundary of [setup('local'), setup('portable'), setup('release', false), setup('release', true, 'linux'), setup('release', true, 'win32', true)]) {
       await boundary.controller.start();

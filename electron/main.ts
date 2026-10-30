@@ -16,7 +16,7 @@ import path from 'node:path';
 import { Store } from './store';
 import { CaptureQueue } from './captureQueue';
 import { openLinks } from './openLinks';
-import { createUpdateController } from './updates';
+import { createUpdateController, loadElectronUpdater } from './updates';
 import { parseCaptureProtocol } from './deepLink';
 import { fetchPageMetadata, readFaviconDataUrl } from './pageMetadata';
 import { createBackup, ensureDailyBackup, listBackups as readBackupList, readBackup } from './backups';
@@ -56,7 +56,7 @@ const updates = createUpdateController({
   packaged: app.isPackaged,
   platform: process.platform,
   portable: Boolean(process.env.PORTABLE_EXECUTABLE_DIR || process.env.PORTABLE_EXECUTABLE_FILE),
-  loadUpdater: async () => (await import('electron-updater')).autoUpdater,
+  loadUpdater: loadElectronUpdater,
   onStatus: (status) => {
     if (window && !window.isDestroyed()) window.webContents.send('update:changed', status);
   },
