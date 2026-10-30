@@ -20,6 +20,19 @@ folder, export a JSON backup, or import one. Backups are validated before they r
 The app keeps running in the system tray so reminders still fire after you close the window
 (this can be switched off in Settings).
 
+## Capture from Chrome or Edge
+
+Install and launch URL Flow, then open `chrome://extensions` in Chrome or `edge://extensions`
+in Edge. Enable **Developer mode**, choose **Load unpacked**, and select the `browser-extension`
+folder from this source checkout or `resources/browser-extension` inside your installed app's
+folder. Keep that folder in place. Portable users should use a persistent copy from the source
+checkout because portable app resources are temporary.
+
+Right-click a page background and choose **Save page to URL Flow**, or right-click a link and
+choose **Save link to URL Flow**. Allow the browser's request to open URL Flow if prompted,
+then review and save in the capture dialog. Links use the clicked destination; pages include
+the tab title. See [the helper instructions](browser-extension/README.md) for details.
+
 ## What it does
 
 - **Links** — save a URL, fetch its page title automatically, add notes and tags, mark favorites,

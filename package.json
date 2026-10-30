@@ -48,6 +48,9 @@
       "assets/**/*",
       "package.json"
     ],
+    "extraResources": [
+      { "from": "browser-extension", "to": "browser-extension" }
+    ],
     "asar": true,
     "electronDist": "node_modules/electron/dist",
     "win": {
