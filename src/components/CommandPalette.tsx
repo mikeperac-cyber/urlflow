@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   Download,
   GitMerge,
+  Globe,
   HardDrive,
   LayoutDashboard,
   Link2,
@@ -37,6 +38,7 @@ interface Result {
 const VIEW_ICONS: Record<ViewName, ReactNode> = {
   dashboard: <LayoutDashboard size={15} />,
   links: <Link2 size={15} />,
+  sites: <Globe size={15} />,
   plans: <Target size={15} />,
   plan: <Target size={15} />,
   tasks: <CheckSquare size={15} />,
@@ -51,6 +53,7 @@ const VIEW_ICONS: Record<ViewName, ReactNode> = {
 const NAV_ORDER: ViewName[] = [
   'dashboard',
   'links',
+  'sites',
   'plans',
   'tasks',
   'notes',

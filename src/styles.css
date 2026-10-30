@@ -4308,6 +4308,38 @@ button.badge:hover {
   white-space: nowrap;
 }
 
+/* ------------------------------------------------------ sites */
+
+.site-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.site-group__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.site-group__header h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  font-weight: 620;
+}
+
+.site-group__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ------------------------------------------------------ bookmark import */
 
 .import-stats {

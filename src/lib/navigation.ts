@@ -1,6 +1,7 @@
 export type ViewName =
   | 'dashboard'
   | 'links'
+  | 'sites'
   | 'plans'
   | 'plan'
   | 'tasks'
@@ -19,6 +20,7 @@ export interface View {
 export const VIEW_META: Record<Exclude<ViewName, 'plan'>, { title: string; subtitle: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Your links, plans and the next thing to do.' },
   links: { title: 'Links', subtitle: 'Every URL you saved, with notes and context.' },
+  sites: { title: 'Sites', subtitle: 'Your saved links, grouped by website.' },
   plans: { title: 'Plans', subtitle: 'Break bigger goals into steps you can actually finish.' },
   tasks: { title: 'Tasks', subtitle: 'One-off actions, due dates and priorities.' },
   notes: { title: 'Notes', subtitle: 'Research, snippets and thoughts worth keeping.' },

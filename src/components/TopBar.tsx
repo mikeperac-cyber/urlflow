@@ -8,13 +8,14 @@ import { Button } from './ui';
 const PRIMARY: Partial<Record<ViewName, { label: string; kind: ItemKind }>> = {
   dashboard: { label: 'New link', kind: 'link' },
   links: { label: 'New link', kind: 'link' },
+  sites: { label: 'New link', kind: 'link' },
   plans: { label: 'New plan', kind: 'plan' },
   tasks: { label: 'New task', kind: 'task' },
   notes: { label: 'New note', kind: 'note' },
   plan: { label: 'Add task', kind: 'task' },
 };
 
-const SEARCHABLE: ViewName[] = ['links', 'plans', 'tasks', 'notes', 'archive', 'reminders'];
+const SEARCHABLE: ViewName[] = ['links', 'sites', 'plans', 'tasks', 'notes', 'archive', 'reminders'];
 
 export function TopBar() {
   const { view, search, setSearch, openEditor, plans } = useApp();

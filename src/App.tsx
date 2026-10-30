@@ -17,6 +17,7 @@ import { PlansView } from './views/Plans';
 import { RemindersView } from './views/Reminders';
 import { ReviewView } from './views/Review';
 import { SettingsView } from './views/Settings';
+import { SitesView } from './views/Sites';
 import { TasksView } from './views/Tasks';
 
 export default function App() {
@@ -96,6 +97,8 @@ function renderView(name: ReturnType<typeof useApp>['view']['name']) {
   switch (name) {
     case 'links':
       return <LinksView />;
+    case 'sites':
+      return <SitesView />;
     case 'plans':
       return <PlansView />;
     case 'plan':

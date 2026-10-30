@@ -5,6 +5,7 @@ import {
   CheckSquare,
   ClipboardCheck,
   GitMerge,
+  Globe,
   LayoutDashboard,
   Link2,
   Moon,
@@ -21,6 +22,7 @@ import type { ViewName } from '../lib/navigation';
 const NAV: { name: ViewName; label: string; icon: typeof Link2 }[] = [
   { name: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { name: 'links', label: 'Links', icon: Link2 },
+  { name: 'sites', label: 'Sites', icon: Globe },
   { name: 'plans', label: 'Plans', icon: Target },
   { name: 'tasks', label: 'Tasks', icon: CheckSquare },
   { name: 'notes', label: 'Notes', icon: NotebookPen },
