@@ -69,7 +69,7 @@ export function buildReviewQueue(
       }
     }
 
-    if (item.kind === 'link') {
+    if (item.kind === 'link' && (item.readingState === 'unread' || item.readingState === 'later')) {
       const reference = item.lastOpenedAt ?? item.createdAt;
       const age = now.getTime() - new Date(reference).getTime();
       if (Number.isFinite(age) && age >= STALE_AFTER) {

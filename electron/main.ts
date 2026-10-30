@@ -403,15 +403,16 @@ function registerIpc(): void {
 
   ipcMain.handle('link:open', async (_event, id: string) => {
     const item = store.get().items.find((entry) => entry.id === id && entry.kind === 'link');
-    if (!item || item.kind !== 'link') return store.get();
-    if (isSafeExternalUrl(item.url)) {
-      await shell.openExternal(item.url);
-    }
+    if (!item || item.kind !== 'link' || !isSafeExternalUrl(item.url)) return store.get();
+    await shell.openExternal(item.url);
+    // Read after the external open: other actions may have committed while it was pending.
+    const current = store.get();
+    const lastOpenedAt = new Date().toISOString();
     return commit(
       {
-        ...store.get(),
-        items: store.get().items.map((entry) =>
-          entry.id === id ? { ...entry, lastOpenedAt: new Date().toISOString() } : entry,
+        ...current,
+        items: current.items.map((entry) =>
+          entry.id === id && entry.kind === 'link' ? { ...entry, readingState: 'read', lastOpenedAt } : entry,
         ),
       },
       'Opened a link',

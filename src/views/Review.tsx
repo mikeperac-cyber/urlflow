@@ -187,9 +187,9 @@ export function ReviewView() {
               <Button
                 variant="primary"
                 icon={<ExternalLink size={14} />}
-                onClick={() => {
-                  void run(api.openLink(item.id), { success: 'Opened in your browser' });
-                  void run(api.markReviewed(item.id));
+                onClick={async () => {
+                  const opened = await run(api.openLink(item.id), { success: 'Opened in your browser' });
+                  if (opened) await run(api.markReviewed(item.id));
                 }}
               >
                 Open link

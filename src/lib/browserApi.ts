@@ -1,5 +1,6 @@
 import * as core from '../../shared/core';
 import { parseBookmarkFile } from '../../shared/bookmarks';
+import { isSafeExternalUrl } from '../../shared/url';
 import {
   emptyState,
   type AppState,
@@ -131,13 +132,13 @@ export const browserApi: FlowApi = {
   unignoreMatch: async (key) => mutate((current) => core.unignoreMatch(current, key)),
   openLink: async (id) => {
     const item = state.items.find((entry) => entry.id === id && entry.kind === 'link');
-    if (item && item.kind === 'link') {
-      window.open(item.url, '_blank', 'noopener,noreferrer');
-    }
+    if (!item || item.kind !== 'link' || !isSafeExternalUrl(item.url)) return state;
+    window.open(item.url, '_blank', 'noopener,noreferrer');
+    const lastOpenedAt = new Date().toISOString();
     return mutate((current) => ({
       ...current,
       items: current.items.map((entry) =>
-        entry.id === id ? { ...entry, lastOpenedAt: new Date().toISOString() } : entry,
+        entry.id === id && entry.kind === 'link' ? { ...entry, readingState: 'read', lastOpenedAt } : entry,
       ),
     }));
   },
