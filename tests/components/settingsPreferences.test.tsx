@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SettingsView } from '../../src/views/Settings';
 
 const context = vi.hoisted(() => ({
-  api: { listBackups: async () => [] }, run: vi.fn(), setPref: vi.fn().mockResolvedValue(undefined), pushToast: vi.fn(),
+  api: { listBackups: async () => [], onUpdateStatus: () => () => undefined }, run: vi.fn(), setPref: vi.fn().mockResolvedValue(undefined), pushToast: vi.fn(),
   prefs: { closeToTray: false, captureShortcut: 'Control+Alt+K', reminderSound: true, quietHoursStart: '', quietHoursEnd: '' },
   links: [], plans: [], tasks: [], notes: [], archivedItems: [], state: { reminders: [] },
 }));

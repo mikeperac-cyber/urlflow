@@ -1,6 +1,6 @@
 {
   "name": "url-flow",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "URL Flow - track links, plan work, and manage tasks, notes, reminders, matches and archives.",
   "author": "URL Flow",
@@ -11,11 +11,13 @@
     "build": "vite build && node scripts/build-electron.mjs",
     "start": "electron .",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
-    "dist": "npm run build && electron-builder --win",
-    "dist:portable": "npm run build && electron-builder --win portable",
+    "dist": "node scripts/package.mjs release",
+    "dist:local": "node scripts/package.mjs local",
+    "dist:portable": "node scripts/package.mjs portable",
     "icons": "node scripts/make-icons.mjs"
   },
   "dependencies": {
+    "electron-updater": "^6.8.12",
     "lucide-react": "^1.61.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
@@ -37,7 +39,14 @@
   "build": {
     "appId": "com.urlflow.desktop",
     "productName": "URL Flow",
-    "protocols": [{ "name": "URL Flow capture", "schemes": ["urlflow"] }],
+    "protocols": [
+      {
+        "name": "URL Flow capture",
+        "schemes": [
+          "urlflow"
+        ]
+      }
+    ],
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -49,14 +58,27 @@
       "package.json"
     ],
     "extraResources": [
-      { "from": "browser-extension", "to": "browser-extension" }
+      {
+        "from": "browser-extension",
+        "to": "browser-extension"
+      }
     ],
     "asar": true,
     "electronDist": "node_modules/electron/dist",
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.ico"
     },

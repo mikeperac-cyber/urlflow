@@ -137,6 +137,15 @@ export interface Preferences {
   quietHoursEnd: string;
 }
 
+export type UpdateStatus =
+  | { state: 'idle'; enabled: boolean; message?: string }
+  | { state: 'checking'; enabled: true }
+  | { state: 'available'; enabled: true; version?: string }
+  | { state: 'downloaded'; enabled: true; version?: string }
+  | { state: 'not-available'; enabled: true; version?: string }
+  | { state: 'downloading'; enabled: true; version?: string; percent: number }
+  | { state: 'error'; enabled: true; message: string };
+
 /** How a pairwise merge should resolve fields that differ between the two items. */
 export interface MergeFieldChoices {
   titleFromId?: string;
@@ -222,6 +231,9 @@ export interface FlowApi {
   importData: () => Promise<AppState | null>;
   revealDataFile: () => Promise<void>;
   testNotification: () => Promise<void>;
+  checkForUpdates: () => Promise<UpdateStatus>;
+  installUpdate: () => Promise<UpdateStatus>;
+  onUpdateStatus: (cb: (status: UpdateStatus) => void) => () => void;
   undo: () => Promise<AppState | null>;
   redo: () => Promise<AppState | null>;
   historyStatus: () => Promise<HistoryStatus>;

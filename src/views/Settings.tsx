@@ -10,7 +10,7 @@ import {
   RotateCcw,
   Upload,
 } from 'lucide-react';
-import type { BackupInfo, BookmarkFile } from '../../shared/types';
+import type { BackupInfo, BookmarkFile, UpdateStatus } from '../../shared/types';
 import { useApp } from '../app-context';
 import { BookmarkDialog } from '../components/BookmarkDialog';
 import { Button, Confirm, Modal } from '../components/ui';
@@ -38,6 +38,27 @@ export function SettingsView() {
   const [picking, setPicking] = useState(false);
   const [captureShortcut, setCaptureShortcut] = useState(prefs.captureShortcut);
   const [savingShortcut, setSavingShortcut] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ state: 'idle', enabled: false });
+  const [updateActionPending, setUpdateActionPending] = useState(false);
+
+  useEffect(() => api.onUpdateStatus(setUpdateStatus), [api]);
+
+  async function updateAction(install: boolean) {
+    if (updateActionPending) return;
+    setUpdateActionPending(true);
+    try { await (install ? api.installUpdate() : api.checkForUpdates()); }
+    catch { pushToast('Could not contact the update service.', 'error'); }
+    finally { setUpdateActionPending(false); }
+  }
+
+  const updateMessage = updateStatus.state === 'idle'
+    ? updateStatus.message ?? 'Check for a newer version of URL Flow.'
+    : updateStatus.state === 'checking' ? 'Checking for updates…'
+    : updateStatus.state === 'available' ? `Version ${updateStatus.version ?? ''} is available. Starting download…`
+    : updateStatus.state === 'downloading' ? `Downloading ${updateStatus.version ?? 'update'} · ${Math.round(updateStatus.percent)}%`
+    : updateStatus.state === 'downloaded' ? `Version ${updateStatus.version ?? ''} is ready. It will install when you quit.`
+    : updateStatus.state === 'not-available' ? 'You’re up to date.'
+    : updateStatus.message;
 
   useEffect(() => {
     setCaptureShortcut(prefs.captureShortcut);
@@ -307,13 +328,31 @@ export function SettingsView() {
         </div>
       </section>
 
+      <section className="panel" aria-label="Application updates">
+        <header className="panel__head"><div>
+          <h3><Download size={16} /> Updates</h3>
+          <p>URL Flow 1.1.0</p>
+        </div></header>
+        <div className="panel__body"><div className="settings-row">
+          <div><strong>Application updates</strong><span role="status">{updateMessage}</span></div>
+          {isDesktop && updateStatus.enabled ? (
+            updateStatus.state === 'downloaded' ? (
+              <Button variant="subtle" disabled={updateActionPending} onClick={() => void updateAction(true)}>Restart to install</Button>
+            ) : (
+              <Button variant="subtle" disabled={updateActionPending || ['checking', 'available', 'downloading'].includes(updateStatus.state)}
+                onClick={() => void updateAction(false)}>Check for updates</Button>
+            )
+          ) : null}
+        </div></div>
+      </section>
+
       <section className="panel panel--about">
         <header className="panel__head">
           <div>
             <h3>
               <Info size={16} /> About
             </h3>
-            <p>URL Flow 1.0.0 — a local-first desktop workspace.</p>
+            <p>URL Flow 1.1.0 — a local-first desktop workspace.</p>
           </div>
         </header>
         <div className="panel__body">

@@ -7,15 +7,23 @@ Built with Electron, React and TypeScript. All data lives on this machine — no
 
 ## Install
 
-Two builds are produced in `release/`:
+Version 1.1.0 has three packaging commands:
 
 | File | Use it when |
 | --- | --- |
-| `URL-Flow-Setup-1.0.0.exe` | Normal install. Per-user, no admin rights, creates Start Menu and desktop shortcuts. |
-| `URL-Flow-Portable-1.0.0.exe` | Run from a USB stick or without installing anything. |
+| `release/URL-Flow-Setup-1.1.0.exe` | Signed release installer with automatic updates. Per-user, creates Start Menu and desktop shortcuts. |
+| `release/local/URL-Flow-Setup-1.1.0-LOCAL.exe` | Local installer when release signing/feed are not configured. Update checks are unavailable; install later versions manually. It may be unsigned. |
+| `release/portable/URL-Flow-Portable-1.1.0.exe` | Run without installing. Automatic updates are unavailable. |
 
 Your data is stored in `%APPDATA%\URL Flow\url-flow-data.json`. Use **Settings → Data** to open that
 folder, export a JSON backup, or import one. Backups are validated before they replace anything.
+Installers and uninstallers retain this data directory. Before a clean reinstall, keep an exported
+backup or copy of the data folder outside the app's installation folder. Uninstall the application,
+then run the new installer; it will load the existing data and preferences.
+
+**Upgrading from 1.0.0:** install 1.1.0 manually once. Version 1.0.0 has no updater, so it cannot
+download this upgrade itself. Signed release builds of 1.1.0 can check and download later releases;
+downloaded updates install on normal app quit or through **Settings → Updates → Restart to install**.
 
 The app keeps running in the system tray so reminders still fire after you close the window
 (this can be switched off in Settings).
@@ -86,8 +94,32 @@ npm install
 npm run dev        # Vite renderer + Electron shell with hot reload
 npm run typecheck  # TypeScript for the renderer and the Electron main/preload
 npm run build      # production renderer bundle + compiled main process
-npm run dist       # build and package the installer + portable exe into release/
+npm run dist:local # local NSIS installer, no feed or signing setup needed
+npm run dist:portable # portable exe; independent of release setup
+npm run dist       # authenticated release NSIS installer; requires the environment below
 ```
 
 Packaging uses the Electron runtime already installed in `node_modules/electron/dist`
 (`build.electronDist` in `package.json`); reinstall dependencies to refresh it after an Electron upgrade.
+Packaging retains the `en-US` and `tr` Electron locale files. The application interface remains English.
+
+## Signed Windows releases
+
+`npm run dist` fails closed unless the release environment contains:
+
+- `URL_FLOW_UPDATE_URL`: an HTTPS directory URL for the update feed, without credentials, query or fragment.
+- `URL_FLOW_PUBLISHER_NAME`: the exact publisher from the Authenticode signing certificate.
+- `WIN_CSC_LINK` or `CSC_LINK`: the signing certificate through electron-builder's supported environment input.
+- `WIN_CSC_KEY_PASSWORD` or `CSC_KEY_PASSWORD` when the certificate needs a password.
+
+Configure these locally or through a release secret store; do not put certificate material or passwords
+in source. Release packaging requires code signing and keeps Windows update signature verification
+enabled. The release build embeds the public HTTPS feed and expected publisher in `app-update.yml`;
+installed apps verify downloaded installers against that publisher. Development, LOCAL and portable
+builds do not initialize the updater, even if release environment variables are later present at runtime.
+
+All packaging commands pass `--publish never`. After reviewing a signed release, upload its
+`URL-Flow-Setup-<version>.exe`, matching `.exe.blockmap`, and `latest.yml` from `release/` to the
+configured HTTPS directory yourself. Keep metadata and installer from the same build together.
+No upload or publication is performed by these commands. A LOCAL installer has no update feed or
+`app-update.yml`, and must never be used as the signed update artifact.

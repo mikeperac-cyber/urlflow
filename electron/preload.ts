@@ -35,6 +35,21 @@ const api: FlowApi = {
   importData: () => ipcRenderer.invoke('data:import'),
   revealDataFile: () => ipcRenderer.invoke('data:reveal'),
   testNotification: () => ipcRenderer.invoke('notification:test'),
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  onUpdateStatus: (callback) => {
+    let alive = true;
+    let receivedEvent = false;
+    const listener = (_event: unknown, status: Parameters<typeof callback>[0]) => {
+      receivedEvent = true;
+      if (alive) callback(status);
+    };
+    ipcRenderer.on('update:changed', listener);
+    void ipcRenderer.invoke('update:status').then((status) => {
+      if (alive && !receivedEvent) callback(status);
+    }).catch(() => undefined);
+    return () => { alive = false; ipcRenderer.removeListener('update:changed', listener); };
+  },
   undo: () => ipcRenderer.invoke('history:undo'),
   redo: () => ipcRenderer.invoke('history:redo'),
   historyStatus: () => ipcRenderer.invoke('history:status'),

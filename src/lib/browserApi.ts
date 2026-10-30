@@ -222,6 +222,12 @@ export const browserApi: FlowApi = {
       new Notification('URL Flow', { body: 'Reminders will appear like this.', silent: !prefs.reminderSound });
     }
   },
+  checkForUpdates: async () => ({ state: 'idle', enabled: false, message: 'Automatic updates are available in the installed Windows app.' }),
+  installUpdate: async () => ({ state: 'idle', enabled: false, message: 'Automatic updates are available in the installed Windows app.' }),
+  onUpdateStatus: (callback) => {
+    callback({ state: 'idle', enabled: false, message: 'Automatic updates are available in the installed Windows app.' });
+    return () => undefined;
+  },
   undo: async () => {
     const entry = past.pop();
     if (!entry) return null;

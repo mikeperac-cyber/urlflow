@@ -16,6 +16,7 @@ import path from 'node:path';
 import { Store } from './store';
 import { CaptureQueue } from './captureQueue';
 import { openLinks } from './openLinks';
+import { createUpdateController } from './updates';
 import { parseCaptureProtocol } from './deepLink';
 import { fetchPageMetadata, readFaviconDataUrl } from './pageMetadata';
 import { createBackup, ensureDailyBackup, listBackups as readBackupList, readBackup } from './backups';
@@ -49,6 +50,18 @@ let prefsPath = '';
 let userDataPath = '';
 let backupTimer: NodeJS.Timeout | null = null;
 const captureQueue = new CaptureQueue();
+declare const __URL_FLOW_PACKAGE_MODE__: string;
+const updates = createUpdateController({
+  mode: typeof __URL_FLOW_PACKAGE_MODE__ === 'string' ? __URL_FLOW_PACKAGE_MODE__ : 'development',
+  packaged: app.isPackaged,
+  platform: process.platform,
+  portable: Boolean(process.env.PORTABLE_EXECUTABLE_DIR || process.env.PORTABLE_EXECUTABLE_FILE),
+  loadUpdater: async () => (await import('electron-updater')).autoUpdater,
+  onStatus: (status) => {
+    if (window && !window.isDestroyed()) window.webContents.send('update:changed', status);
+  },
+  setQuitting: (value) => { isQuitting = value; },
+});
 
 app.setName('URL Flow');
 if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
@@ -317,6 +330,9 @@ async function fetchPageTitle(rawUrl: string): Promise<string | null> {
 }
 
 function registerIpc(): void {
+  ipcMain.handle('update:status', () => updates.getStatus());
+  ipcMain.handle('update:check', () => updates.check());
+  ipcMain.handle('update:install', () => updates.install());
   ipcMain.on('app:capture-ready', (event, ready: unknown) => {
     const contents = window?.webContents;
     if (!contents || event.sender !== contents || event.senderFrame !== contents.mainFrame) return;
@@ -594,6 +610,7 @@ app.whenReady().then(() => {
   registerIpc();
   createWindow();
   createTray();
+  void updates.start();
 
   const menu = Menu.buildFromTemplate([
     {
