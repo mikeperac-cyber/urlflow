@@ -14,6 +14,7 @@ import {
 import fs from 'node:fs';
 import path from 'node:path';
 import { Store } from './store';
+import { fetchPageMetadata, readFaviconDataUrl } from './pageMetadata';
 import { createBackup, ensureDailyBackup, listBackups as readBackupList, readBackup } from './backups';
 import * as core from '../shared/core';
 import { parseBookmarkFile } from '../shared/bookmarks';
@@ -267,47 +268,9 @@ function tickReminders(): void {
   commit(next, 'Fired reminders');
 }
 
-function decodeEntities(value: string): string {
-  return value
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#(\d+);/g, (_m, code) => String.fromCharCode(Number(code)))
-    .trim();
-}
-
 async function fetchPageTitle(rawUrl: string): Promise<string | null> {
-  const normalized = normalizeUrl(rawUrl);
-  if (!normalized.url || !isSafeExternalUrl(normalized.url)) return null;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 9000);
-  try {
-    const response = await fetch(normalized.url, {
-      signal: controller.signal,
-      redirect: 'follow',
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36 URL-Flow/1.0',
-        Accept: 'text/html,application/xhtml+xml',
-      },
-    });
-    if (!response.ok) return null;
-    const contentType = response.headers.get('content-type') ?? '';
-    if (!contentType.includes('html') && contentType !== '') return null;
-    const buffer = await response.arrayBuffer();
-    const html = new TextDecoder('utf-8').decode(buffer.slice(0, 400_000));
-    const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-    if (!match) return null;
-    const title = decodeEntities(match[1].replace(/\s+/g, ' '));
-    return title ? title.slice(0, 200) : null;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
+  const metadata = await fetchPageMetadata(rawUrl, userDataPath);
+  return metadata?.title?.slice(0, 200) || null;
 }
 
 function registerIpc(): void {
@@ -428,6 +391,8 @@ function registerIpc(): void {
   ipcMain.handle('clipboard:read', () => clipboard.readText());
 
   ipcMain.handle('net:fetchTitle', (_event, url: string) => fetchPageTitle(String(url ?? '')));
+  ipcMain.handle('net:fetchMetadata', (_event, url: string) => fetchPageMetadata(String(url ?? ''), userDataPath));
+  ipcMain.handle('favicon:read', (_event, key: string) => readFaviconDataUrl(userDataPath, key));
 
   ipcMain.handle('data:export', async () => {
     const stamp = new Date().toISOString().slice(0, 10);

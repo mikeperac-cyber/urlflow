@@ -44,6 +44,20 @@ function cleanTags(tags: unknown): string[] {
   return out.slice(0, 20);
 }
 
+function cleanLinkEnrichment(source: Pick<ItemDraft, 'description' | 'siteName' | 'faviconKey'>) {
+  const fields: Pick<LinkItem, 'description' | 'siteName' | 'faviconKey'> = {};
+  if (source.description !== undefined) {
+    fields.description = typeof source.description === 'string' ? source.description.trim().slice(0, 500) || null : null;
+  }
+  if (source.siteName !== undefined) {
+    fields.siteName = typeof source.siteName === 'string' ? source.siteName.trim().slice(0, 120) || null : null;
+  }
+  if (source.faviconKey !== undefined) {
+    fields.faviconKey = typeof source.faviconKey === 'string' && /^[a-f0-9]{64}$/.test(source.faviconKey) ? source.faviconKey : null;
+  }
+  return fields;
+}
+
 function cleanSteps(steps: unknown): Step[] {
   if (!Array.isArray(steps)) return [];
   const out: Step[] = [];
@@ -102,6 +116,7 @@ export function createItem(state: AppState, draft: ItemDraft): { state: AppState
       }
       const link: LinkItem = {
         ...base,
+        ...cleanLinkEnrichment(draft),
         kind: 'link',
         title: base.title || normalized.key.replace(/^https?:\/\//, ''),
         url,
@@ -172,6 +187,7 @@ export function updateItem(state: AppState, id: string, patch: ItemPatch): AppSt
   if (patch.planId !== undefined) updated.planId = resolvePlanId(state, patch.planId);
 
   if (updated.kind === 'link' && existing.kind === 'link') {
+    Object.assign(updated, cleanLinkEnrichment(patch));
     if (patch.url !== undefined) {
       const normalized = normalizeUrl(patch.url);
       if (!normalized.url || !isSafeExternalUrl(normalized.url)) {
@@ -281,6 +297,11 @@ export function mergeItems(
     merged.url = primary.url || other.url;
     merged.favorite = primary.favorite || other.favorite;
     merged.lastOpenedAt = primary.lastOpenedAt ?? other.lastOpenedAt;
+    Object.assign(merged, cleanLinkEnrichment({
+      description: primary.description || other.description,
+      siteName: primary.siteName || other.siteName,
+      faviconKey: primary.faviconKey || other.faviconKey,
+    }));
   }
 
   if (merged.kind === 'task' && primary.kind === 'task' && other.kind === 'task') {
@@ -633,6 +654,7 @@ export function normalizeState(raw: unknown): AppState {
       if (!normalized.url) continue;
       items.push({
         ...base,
+        ...cleanLinkEnrichment(item),
         kind: 'link',
         url: normalized.url,
         favorite: Boolean(item.favorite),

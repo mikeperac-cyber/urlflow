@@ -146,6 +146,8 @@ export const browserApi: FlowApi = {
   },
   readClipboard: async () => navigator.clipboard.readText(),
   fetchTitle: async () => null,
+  fetchMetadata: async () => null,
+  readFavicon: async () => null,
   exportData: async () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

@@ -43,6 +43,16 @@ export interface LinkItem extends BaseItem {
   url: string;
   favorite: boolean;
   lastOpenedAt: string | null;
+  description?: string | null;
+  siteName?: string | null;
+  faviconKey?: string | null;
+}
+
+export interface LinkMetadata {
+  title: string | null;
+  description: string | null;
+  siteName: string | null;
+  faviconKey: string | null;
 }
 
 export interface PlanItem extends BaseItem {
@@ -84,6 +94,9 @@ export interface ItemDraft {
   planId?: string | null;
   url?: string;
   favorite?: boolean;
+  description?: string | null;
+  siteName?: string | null;
+  faviconKey?: string | null;
   summary?: string;
   status?: PlanStatus;
   targetDate?: string | null;
@@ -181,6 +194,8 @@ export interface FlowApi {
   copyText: (text: string) => Promise<void>;
   readClipboard: () => Promise<string>;
   fetchTitle: (url: string) => Promise<string | null>;
+  fetchMetadata: (url: string) => Promise<LinkMetadata | null>;
+  readFavicon: (key: string) => Promise<string | null>;
   exportData: () => Promise<string | null>;
   importData: () => Promise<AppState | null>;
   revealDataFile: () => Promise<void>;
