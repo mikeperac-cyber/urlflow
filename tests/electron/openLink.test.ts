@@ -52,6 +52,43 @@ afterEach(() => {
 });
 
 describe('desktop link opening', () => {
+  it('opensSelectedLinksInOneUndoStepAndPreservesInFlightEdits', async () => {
+    const first = create();
+    const failed = create();
+    const last = create('unread');
+    const noteState: AppState = invoke('item:create', { kind: 'note', title: 'Keep note' });
+    const note = noteState.items.find((item) => item.kind === 'note')!;
+    let finish!: () => void;
+    boundary.openExternal
+      .mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }))
+      .mockRejectedValueOnce(new Error('Cannot open'))
+      .mockResolvedValueOnce(undefined);
+    const opening = invoke('link:openMany', [first, failed, last, first, 'missing', note.id]);
+    invoke('item:markReviewed', first);
+    const before = structuredClone(invoke('state:load'));
+    finish();
+    const final: AppState = await opening;
+
+    expect(boundary.openExternal).toHaveBeenCalledTimes(3);
+    for (const id of [first, last]) {
+      expect(final.items.find((item) => item.id === id)).toMatchObject({ readingState: 'read', lastOpenedAt: now });
+    }
+    expect(final.items.find((item) => item.id === first)).toMatchObject({ reviewedAt: now });
+    expect(final.items.find((item) => item.id === failed)).toMatchObject({ readingState: 'later', lastOpenedAt: null });
+    expect(invoke('history:undo')).toEqual(before);
+    expect(invoke('history:redo')).toEqual(final);
+  });
+
+  it('bulkTriageCommitsTheEntireSelectionInOneUndoStep', () => {
+    const first = create();
+    const second = create();
+    const before = structuredClone(invoke('state:load'));
+    const final: AppState = invoke('link:bulkTriage', { ids: [first, second], action: { type: 'add-tags', tags: ['Research'] } });
+    expect(final.items.every((item) => item.tags.includes('Research'))).toBe(true);
+    expect(invoke('history:undo')).toEqual(before);
+    expect(invoke('history:redo')).toEqual(final);
+  });
+
   it.each(['unread', 'later'] as const)('commitsReadWithOpenedAtWithoutOverwritingAnInFlightReview (%s)', async (readingState) => {
     const id = create(readingState);
     let finish!: () => void;

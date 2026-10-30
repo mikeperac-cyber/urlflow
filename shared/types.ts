@@ -205,6 +205,8 @@ export interface FlowApi {
   ignoreMatch: (key: string) => Promise<AppState>;
   unignoreMatch: (key: string) => Promise<AppState>;
   openLink: (id: string) => Promise<AppState>;
+  openLinks: (ids: string[]) => Promise<AppState>;
+  bulkTriage: (ids: string[], action: LinkBulkAction) => Promise<AppState>;
   copyText: (text: string) => Promise<void>;
   readClipboard: () => Promise<string>;
   fetchTitle: (url: string) => Promise<string | null>;

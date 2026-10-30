@@ -130,6 +130,28 @@ export const browserApi: FlowApi = {
   removeReminder: async (id) => mutate((current) => core.removeReminder(current, id)),
   ignoreMatch: async (key) => mutate((current) => core.ignoreMatch(current, key)),
   unignoreMatch: async (key) => mutate((current) => core.unignoreMatch(current, key)),
+  bulkTriage: async (ids, action) => mutate((current) => core.bulkTriageLinks(current, ids, action)),
+  openLinks: async (ids) => {
+    const selected = new Set(ids);
+    const opened = new Set<string>();
+    for (const item of state.items) {
+      if (item.kind !== 'link' || !selected.has(item.id) || !isSafeExternalUrl(item.url)) continue;
+      try {
+        window.open(item.url, '_blank', 'noopener,noreferrer');
+        opened.add(item.id);
+      } catch {
+        // Continue opening the selection after an individual browser error.
+      }
+    }
+    if (opened.size === 0) return state;
+    const lastOpenedAt = new Date().toISOString();
+    return mutate((current) => ({
+      ...current,
+      items: current.items.map((entry) =>
+        entry.kind === 'link' && opened.has(entry.id) ? { ...entry, readingState: 'read', lastOpenedAt } : entry,
+      ),
+    }));
+  },
   openLink: async (id) => {
     const item = state.items.find((entry) => entry.id === id && entry.kind === 'link');
     if (!item || item.kind !== 'link' || !isSafeExternalUrl(item.url)) return state;

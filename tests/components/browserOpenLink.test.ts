@@ -15,6 +15,43 @@ beforeEach(async () => {
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); localStorage.clear(); });
 
 describe('browser link opening', () => {
+  it('opensSelectionAndPersistsSuccessfulMetadataInOneUndoStep', async () => {
+    const first = (await api.create({ kind: 'link', title: 'First', url: 'https://example.com/first' })).items[0].id;
+    const failedState = await api.create({ kind: 'link', title: 'Failed', url: 'https://example.com/failed' });
+    const failed = failedState.items.find((item) => item.title === 'Failed')!.id;
+    const before = await api.create({ kind: 'link', title: 'Last', url: 'https://example.com/last', readingState: 'later' });
+    const last = before.items.find((item) => item.title === 'Last')!.id;
+    vi.mocked(window.open).mockImplementation((url) => {
+      if (url === 'https://example.com/failed') throw new Error('Cannot open');
+      return null;
+    });
+    const changes: unknown[] = [];
+    const off = api.onState((state) => changes.push(state));
+    const final = await api.openLinks([first, failed, last, first, 'missing']);
+
+    expect(window.open).toHaveBeenCalledTimes(3);
+    expect(changes).toHaveLength(1);
+    for (const id of [first, last]) {
+      expect(final.items.find((item) => item.id === id)).toMatchObject({ readingState: 'read', lastOpenedAt: now });
+    }
+    expect(final.items.find((item) => item.id === failed)).toMatchObject({ readingState: 'unread', lastOpenedAt: null });
+    expect(await api.undo()).toEqual(before);
+    expect(await api.redo()).toEqual(final);
+    off();
+  });
+
+  it('bulkTriagePersistsOneCombinedMutation', async () => {
+    await api.create({ kind: 'link', title: 'First', url: 'https://example.com/first' });
+    const before = await api.create({ kind: 'link', title: 'Last', url: 'https://example.com/last' });
+    const changes: unknown[] = [];
+    const off = api.onState((state) => changes.push(state));
+    const final = await api.bulkTriage(before.items.map((item) => item.id), { type: 'add-tags', tags: ['Research'] });
+    expect(final.items.every((item) => item.tags.includes('Research'))).toBe(true);
+    expect(changes).toHaveLength(1);
+    expect(await api.undo()).toEqual(before);
+    off();
+  });
+
   it.each(['unread', 'later'] as const)('recordsReadAndOpenedTogetherAndPreservesReview (%s)', async (readingState) => {
     const created = await api.create({ kind: 'link', title: 'Saved page', url: 'https://example.com', readingState });
     const id = created.items[0].id;

@@ -15,6 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Store } from './store';
 import { CaptureQueue } from './captureQueue';
+import { openLinks } from './openLinks';
 import { parseCaptureProtocol } from './deepLink';
 import { fetchPageMetadata, readFaviconDataUrl } from './pageMetadata';
 import { createBackup, ensureDailyBackup, listBackups as readBackupList, readBackup } from './backups';
@@ -26,6 +27,7 @@ import type {
   BookmarkEntry,
   ItemDraft,
   ItemPatch,
+  LinkBulkAction,
   MergeFieldChoices,
   Preferences,
   RepeatRule,
@@ -400,6 +402,26 @@ function registerIpc(): void {
   ipcMain.handle('match:unignore', (_event, key: string) =>
     commit(core.unignoreMatch(store.get(), key), 'Restored a match'),
   );
+
+  ipcMain.handle('link:bulkTriage', (_event, { ids, action }: { ids: string[]; action: LinkBulkAction }) =>
+    commit(core.bulkTriageLinks(store.get(), ids, action), 'Triaged links'),
+  );
+
+  ipcMain.handle('link:openMany', async (_event, ids: string[]) => {
+    const selected = new Set(ids);
+    const links = store.get().items.filter((entry) => entry.kind === 'link' && selected.has(entry.id));
+    const opened = new Set(await openLinks(links, (url) => shell.openExternal(url)));
+    if (opened.size === 0) return store.get();
+    // Other actions may have committed while the external opens were pending.
+    const current = store.get();
+    const lastOpenedAt = new Date().toISOString();
+    return commit({
+      ...current,
+      items: current.items.map((entry) =>
+        entry.kind === 'link' && opened.has(entry.id) ? { ...entry, readingState: 'read', lastOpenedAt } : entry,
+      ),
+    }, 'Opened links');
+  });
 
   ipcMain.handle('link:open', async (_event, id: string) => {
     const item = store.get().items.find((entry) => entry.id === id && entry.kind === 'link');
