@@ -89,6 +89,13 @@ export interface AppState {
   ignoredMatches: string[];
 }
 
+export type LinkBulkAction =
+  | { type: 'add-tags'; tags: string[] }
+  | { type: 'assign-plan'; planId: string | null }
+  | { type: 'archive' }
+  /** Sorted pair keys expanded from every duplicate group intersecting the selection. */
+  | { type: 'ignore-matches'; keys: string[] };
+
 export interface ItemDraft {
   kind: ItemKind;
   title: string;

@@ -7,6 +7,7 @@ import {
   type BookmarkImportResult,
   type ItemDraft,
   type ItemPatch,
+  type LinkBulkAction,
   type LinkItem,
   type MergeFieldChoices,
   type NoteItem,
@@ -251,6 +252,46 @@ export function setArchived(state: AppState, id: string, archived: boolean): App
     ),
     reminders: archived
       ? state.reminders.filter((reminder) => reminder.itemId !== id)
+      : state.reminders,
+  };
+}
+
+export function bulkTriageLinks(
+  state: AppState,
+  ids: string[],
+  action: LinkBulkAction,
+  now: Date = new Date(),
+): AppState {
+  if (action.type === 'assign-plan' && action.planId !== null && !resolvePlanId(state, action.planId)) {
+    throw new Error('The selected plan no longer exists.');
+  }
+
+  const requestedIds = new Set(ids);
+  const selectedIds = new Set(state.items
+    .filter((item) => item.kind === 'link' && !item.archivedAt && requestedIds.has(item.id))
+    .map((item) => item.id));
+  if (selectedIds.size === 0) return state;
+
+  if (action.type === 'ignore-matches') {
+    return { ...state, ignoredMatches: [...new Set([...state.ignoredMatches, ...action.keys.filter(Boolean)])] };
+  }
+
+  const timestamp = now.toISOString();
+  return {
+    ...state,
+    items: state.items.map((item) => {
+      if (item.kind !== 'link' || !selectedIds.has(item.id)) return item;
+      switch (action.type) {
+        case 'add-tags':
+          return { ...item, tags: cleanTags([...item.tags, ...action.tags]), updatedAt: timestamp };
+        case 'assign-plan':
+          return { ...item, planId: action.planId, updatedAt: timestamp };
+        case 'archive':
+          return { ...item, archivedAt: timestamp, updatedAt: timestamp };
+      }
+    }),
+    reminders: action.type === 'archive'
+      ? state.reminders.filter((reminder) => !selectedIds.has(reminder.itemId))
       : state.reminders,
   };
 }
@@ -532,7 +573,7 @@ export function removeReminder(state: AppState, id: string): AppState {
 
 export function ignoreMatch(state: AppState, key: string): AppState {
   if (!key || state.ignoredMatches.includes(key)) return state;
-  return { ...state, ignoredMatches: [...state.ignoredMatches, key].slice(-500) };
+  return { ...state, ignoredMatches: [...state.ignoredMatches, key] };
 }
 
 export function unignoreMatch(state: AppState, key: string): AppState {
@@ -736,7 +777,7 @@ export function normalizeState(raw: unknown): AppState {
   }
 
   const ignoredMatches = Array.isArray(source.ignoredMatches)
-    ? source.ignoredMatches.filter((entry): entry is string => typeof entry === 'string').slice(-500)
+    ? source.ignoredMatches.filter((entry): entry is string => typeof entry === 'string')
     : [];
 
   return { ...emptyState(), items, reminders, ignoredMatches };
