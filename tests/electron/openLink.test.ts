@@ -167,13 +167,34 @@ describe('desktop link opening', () => {
     const state: AppState = invoke('state:load');
     (state.items[0] as LinkItem).url = 'javascript:alert(1)';
     const before = JSON.stringify(state);
-    await invoke('link:open', id);
-    await invoke('link:open', 'missing');
+    expect(await invoke('link:open', id)).toBeNull();
+    expect(await invoke('link:open', 'missing')).toBeNull();
     expect(JSON.stringify(invoke('state:load'))).toBe(before);
     const noteState: AppState = invoke('item:create', { kind: 'note', title: 'A note' });
     const note = noteState.items.find((entry) => entry.kind === 'note')!;
-    await invoke('link:open', note.id);
+    expect(await invoke('link:open', note.id)).toBeNull();
     expect(invoke('state:load')).toEqual(noteState);
     expect(boundary.openExternal).not.toHaveBeenCalled();
+  });
+
+  it('returnsNullWithoutChangingArchivedSingleLinksOrPriorHistory', async () => {
+    const id = create();
+    const before = structuredClone(invoke('item:archive', id));
+    expect(await invoke('link:open', id)).toBeNull();
+    expect(invoke('state:load')).toEqual(before);
+    expect(boundary.openExternal).not.toHaveBeenCalled();
+    expect(invoke('history:undo').items[0].archivedAt).toBeNull();
+  });
+
+  it('returnsNullWhenASingleLinkIsArchivedDuringItsOpen', async () => {
+    const id = create();
+    let finish!: () => void;
+    boundary.openExternal.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve; }));
+    const opening = invoke('link:open', id);
+    const archived = structuredClone(invoke('item:archive', id));
+    finish();
+    expect(await opening).toBeNull();
+    expect(invoke('state:load')).toEqual(archived);
+    expect(invoke('history:undo').items[0].archivedAt).toBeNull();
   });
 });

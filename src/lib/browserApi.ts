@@ -171,15 +171,17 @@ export const browserApi: FlowApi = {
   },
   openLink: async (id) => {
     const item = state.items.find((entry) => entry.id === id && entry.kind === 'link');
-    if (!item || item.kind !== 'link' || !isSafeExternalUrl(item.url)) return state;
+    if (!item || item.kind !== 'link' || item.archivedAt || !isSafeExternalUrl(item.url)) return null;
     window.open(item.url, '_blank', 'noopener,noreferrer');
     const lastOpenedAt = new Date().toISOString();
-    return mutate((current) => ({
+    const current = state;
+    const saved = mutate((current) => ({
       ...current,
       items: current.items.map((entry) =>
-        entry.id === id && entry.kind === 'link' ? { ...entry, readingState: 'read', lastOpenedAt } : entry,
+        entry.id === id && entry.kind === 'link' && !entry.archivedAt ? { ...entry, readingState: 'read', lastOpenedAt } : entry,
       ),
     }));
+    return saved === current ? null : saved;
   },
   copyText: async (text) => {
     await navigator.clipboard.writeText(text);

@@ -17,9 +17,9 @@ vi.mock('../../src/lib/api', async () => {
 });
 
 function Harness() {
-  const { state } = useApp();
+  const { state, toasts } = useApp();
   const link = state.items[0] as LinkItem | undefined;
-  return <><ReviewView /><output aria-label="Link state">{link?.readingState}|{link?.reviewedAt ?? 'unreviewed'}</output></>;
+  return <><ReviewView /><output aria-label="Link state">{link?.readingState}|{link?.reviewedAt ?? 'unreviewed'}</output>{toasts.map((toast) => <p key={toast.id}>{toast.message}</p>)}</>;
 }
 async function mount(readingState: 'unread' | 'later' = 'later') {
   boundary.state = core.createItem(emptyState(), { kind: 'link', title: 'Old page', url: 'https://example.com', readingState }).state;
@@ -64,6 +64,17 @@ describe('review reading actions', () => {
     expect(boundary.markReviewed).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Link state').textContent).toBe('later|unreviewed');
     expect(screen.getByRole('button', { name: 'Open link' })).toBeTruthy();
+  });
+
+  it('leavesANullLegacyOpenUnreviewedWithoutASuccessToast', async () => {
+    boundary.openLink.mockResolvedValue(null);
+    await mount();
+    (boundary.state!.items[0] as LinkItem).url = 'javascript:1';
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Open link' })); });
+    expect(boundary.markReviewed).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Link state').textContent).toBe('later|unreviewed');
+    expect(screen.getByRole('button', { name: 'Open link' })).toBeTruthy();
+    expect(screen.queryByText('Opened in your browser')).toBeNull();
   });
 
   it.each(['unread', 'later'] as const)('keepPreservesReadingState (%s)', async (readingState) => {

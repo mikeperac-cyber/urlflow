@@ -91,11 +91,16 @@ function ItemDialogInner() {
   const initialUrl = normalizeUrl(item?.kind === 'link' ? item.url : preset.url ?? '').url;
   const usingPrefetched = request.metadata !== undefined && normalizedUrl === initialUrl;
   const preview = usePageMetadata(kind === 'link' && !usingPrefetched ? url : '', api.fetchMetadata);
-  const metadata = kind !== 'link' ? null : usingPrefetched ? request.metadata ?? null : preview.metadata ?? (
-    normalizedUrl === initialUrl && item?.kind === 'link'
-      ? { title: item.title, description: item.description ?? null, siteName: item.siteName ?? null, faviconKey: item.faviconKey ?? null }
-      : null
-  );
+  const storedMetadata = normalizedUrl === initialUrl && item?.kind === 'link'
+    ? { title: item.title, description: item.description ?? null, siteName: item.siteName ?? null, faviconKey: item.faviconKey ?? null }
+    : null;
+  const refreshedMetadata = usingPrefetched ? request.metadata ?? null : preview.metadata;
+  const metadata = kind !== 'link' ? null : refreshedMetadata ? {
+    title: refreshedMetadata.title ?? storedMetadata?.title ?? null,
+    description: refreshedMetadata.description ?? storedMetadata?.description ?? null,
+    siteName: refreshedMetadata.siteName ?? storedMetadata?.siteName ?? null,
+    faviconKey: refreshedMetadata.faviconKey ?? storedMetadata?.faviconKey ?? null,
+  } : storedMetadata;
   const fetching = kind === 'link' && !usingPrefetched && preview.fetching;
 
   useEffect(() => {

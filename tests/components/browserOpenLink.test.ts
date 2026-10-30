@@ -124,13 +124,23 @@ describe('browser link opening', () => {
     const item = created.items[0] as LinkItem;
     item.url = 'javascript:alert(1)';
     const before = JSON.stringify(created);
-    await api.openLink(item.id);
-    await api.openLink('missing');
+    expect(await api.openLink(item.id)).toBeNull();
+    expect(await api.openLink('missing')).toBeNull();
     expect(JSON.stringify(await api.load())).toBe(before);
     const noteState = await api.create({ kind: 'note', title: 'A note' });
     const note = noteState.items.find((entry) => entry.kind === 'note')!;
-    await api.openLink(note.id);
+    expect(await api.openLink(note.id)).toBeNull();
     expect(await api.load()).toEqual(noteState);
     expect(window.open).not.toHaveBeenCalled();
+  });
+
+  it('returnsNullWithoutChangingArchivedSingleLinksOrPriorHistory', async () => {
+    const created = await api.create({ kind: 'link', title: 'Archived', url: 'https://example.com' });
+    const id = created.items[0].id;
+    const before = await api.archive(id);
+    expect(await api.openLink(id)).toBeNull();
+    expect(await api.load()).toEqual(before);
+    expect(window.open).not.toHaveBeenCalled();
+    expect((await api.undo())!.items[0].archivedAt).toBeNull();
   });
 });

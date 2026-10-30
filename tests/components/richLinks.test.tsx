@@ -61,16 +61,49 @@ describe('rich link integration', () => {
     expect(boundary.state!.items[0]).toMatchObject({ title: 'Browser title', description: page.description, siteName: page.siteName, faviconKey: page.faviconKey });
   });
 
-  it('eachProtocolRequestResetsTheDialogEvenForTheSameUrl', async () => {
+  it('queuesProtocolRequestsWithoutDiscardingTheActiveDraft', async () => {
     await mount();
     const payload = { url: 'https://example.com/article', mode: 'dialog' as const };
     await act(async () => { boundary.capture!({ ...payload, title: 'First', requestId: 'first' }); });
     fireEvent.change(input('Notes'), { target: { value: 'Old draft notes' } });
     fireEvent.change(input('Title'), { target: { value: 'Edited first title' } });
     await act(async () => { boundary.capture!({ ...payload, title: 'Second', requestId: 'second' }); });
+    expect(input('Title').value).toBe('Edited first title');
+    expect(input('Notes').value).toBe('Old draft notes');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Create link' })); });
+    expect(boundary.state!.items[0]).toMatchObject({ title: 'Edited first title', notes: 'Old draft notes' });
     expect(input('Title').value).toBe('Second');
     expect(input('Notes').value).toBe('');
+    expect(boundary.state!.items).toHaveLength(1);
+  });
+
+  it('showsMultipleStartupCapturesInFifoOrderAfterEachCancel', async () => {
+    await mount();
+    await act(async () => {
+      for (const [index, title] of ['First', 'Second', 'Third'].entries()) {
+        boundary.capture!({ url: `https://example.com/${index}`, title, mode: 'dialog', requestId: title });
+      }
+    });
+    for (const title of ['First', 'Second', 'Third']) {
+      expect(input('Title').value).toBe(title);
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Cancel' })); });
+    }
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(boundary.state!.items).toHaveLength(0);
+  });
+
+  it('preservesAManualEditorUntilItClosesBeforeShowingACapture', async () => {
+    await mount();
+    fireEvent.click(screen.getByText('New link'));
+    fireEvent.change(input('Web address'), { target: { value: 'https://manual.test' } });
+    fireEvent.change(input('Notes'), { target: { value: 'Manual draft' } });
+    await act(async () => { boundary.capture!({ url: 'https://captured.test', title: 'Captured', mode: 'dialog', requestId: 'queued' }); });
+    expect(input('Web address').value).toBe('https://manual.test');
+    expect(input('Notes').value).toBe('Manual draft');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Cancel' })); });
+    expect(input('Web address').value).toBe('https://captured.test');
+    expect(input('Title').value).toBe('Captured');
+    expect(input('Notes').value).toBe('');
   });
 
   it('previewsAndSavesMetadataWithoutOverwritingAnEditedTitle', async () => {
@@ -143,6 +176,19 @@ describe('rich link integration', () => {
     fireEvent.change(input('Web address'), { target: { value: 'different.test' } });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save changes' })); });
     expect(boundary.state!.items[0]).toMatchObject({ description: null, siteName: null, faviconKey: null });
+  });
+
+  it('retainsCachedEnrichmentFieldsWhenAnUnchangedUrlRefreshIsPartial', async () => {
+    boundary.state = core.createItem(emptyState(), { kind: 'link', url: 'example.com', ...page, title: 'Saved title' }).state;
+    boundary.fetchMetadata.mockResolvedValue({ title: 'Refreshed HTML title', description: 'Fresh description', siteName: null, faviconKey: null });
+    await mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit link' }));
+    await settleMetadata();
+    expect(input('Title').value).toBe('Saved title');
+    fireEvent.change(input('Title'), { target: { value: 'My chosen title' } });
+    fireEvent.change(input('Notes'), { target: { value: 'Edited notes' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save changes' })); });
+    expect(boundary.state!.items[0]).toMatchObject({ title: 'My chosen title', notes: 'Edited notes', description: 'Fresh description', siteName: page.siteName, faviconKey: page.faviconKey });
   });
 
   it('clipboardPasteFetchesOnceAndCarriesThePreviewIntoTheDialog', async () => {

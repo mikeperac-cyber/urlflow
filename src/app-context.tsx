@@ -107,7 +107,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [search, setSearch] = useState('');
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const [editor, setEditor] = useState<EditorRequest | null>(null);
+  const [{ active: editor }, setEditors] = useState<{
+    active: EditorRequest | null;
+    pending: EditorRequest[];
+  }>({ active: null, pending: [] });
   const [mergeIds, setMergeIds] = useState<string[] | null>(null);
   const [reminderItem, setReminderItem] = useState<AnyItem | null>(null);
   const [reminderOpen, setReminderOpen] = useState(false);
@@ -264,7 +267,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (mode === 'dialog') {
-        setEditor({ kind: 'link', preset: { url, title }, requestId });
+        const request: EditorRequest = { kind: 'link', preset: { url, title }, requestId };
+        // Delivery can include several startup captures in the same turn. Keep
+        // them with the active editor so arrival never replaces unsaved input.
+        setEditors((current) => current.active
+          ? { ...current, pending: [...current.pending, request] }
+          : { ...current, active: request });
         return;
       }
       void (async () => {
@@ -410,8 +418,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     run,
     setPref,
     editor,
-    openEditor: (request) => setEditor(request),
-    closeEditor: () => setEditor(null),
+    openEditor: (request) => setEditors((current) => ({ ...current, active: request })),
+    closeEditor: () => setEditors((current) => ({ active: current.pending[0] ?? null, pending: current.pending.slice(1) })),
     mergeIds,
     openMerge: (ids) => setMergeIds(ids),
     closeMerge: () => setMergeIds(null),

@@ -217,7 +217,8 @@ export interface FlowApi {
   removeReminder: (id: string) => Promise<AppState>;
   ignoreMatch: (key: string) => Promise<AppState>;
   unignoreMatch: (key: string) => Promise<AppState>;
-  openLink: (id: string) => Promise<AppState>;
+  /** Null means no new undoable open state was committed. */
+  openLink: (id: string) => Promise<AppState | null>;
   /** Null means no new undoable state change was committed. */
   openLinks: (ids: string[]) => Promise<AppState | null>;
   /** Null means no new undoable state change was committed. */
