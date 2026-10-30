@@ -55,7 +55,8 @@ describe('desktop link opening', () => {
   it('doesNotOpenOrModifyArchivedBatchSelections', async () => {
     const id = create();
     const before = structuredClone(invoke('item:archive', id));
-    expect(await invoke('link:openMany', [id])).toEqual(before);
+    expect(await invoke('link:openMany', [id])).toBeNull();
+    expect(invoke('state:load')).toEqual(before);
     expect(boundary.openExternal).not.toHaveBeenCalled();
     expect(invoke('history:undo').items[0].archivedAt).toBeNull();
   });
@@ -67,7 +68,8 @@ describe('desktop link opening', () => {
     const opening = invoke('link:openMany', [id]);
     const archived = structuredClone(invoke('item:archive', id));
     finish();
-    expect(await opening).toEqual(archived);
+    expect(await opening).toBeNull();
+    expect(invoke('state:load')).toEqual(archived);
     expect(invoke('history:undo').items[0].archivedAt).toBeNull();
   });
 
@@ -76,7 +78,8 @@ describe('desktop link opening', () => {
     const state: AppState = invoke('state:load');
     (state.items[0] as LinkItem).url = url;
     const before = structuredClone(state);
-    expect(await invoke('link:openMany', [id])).toEqual(before);
+    expect(await invoke('link:openMany', [id])).toBeNull();
+    expect(invoke('state:load')).toEqual(before);
     expect(boundary.openExternal).not.toHaveBeenCalled();
   });
 
@@ -115,6 +118,24 @@ describe('desktop link opening', () => {
     expect(final.items.every((item) => item.tags.includes('Research'))).toBe(true);
     expect(invoke('history:undo')).toEqual(before);
     expect(invoke('history:redo')).toEqual(final);
+  });
+
+  it.each(['stale-selection', 'all-opens-failed', 'unchanged-ignore'] as const)('returnsNullWithoutReplacingPriorHistoryFor%s', async (scenario) => {
+    const id = create();
+    const beforePrior = structuredClone(invoke('state:load'));
+    if (scenario === 'unchanged-ignore') {
+      invoke('link:bulkTriage', { ids: [id], action: { type: 'ignore-matches', keys: ['a|b'] } });
+    } else {
+      invoke('item:create', { kind: 'note', title: 'Previous change' });
+    }
+    const before = structuredClone(invoke('state:load'));
+    boundary.openExternal.mockRejectedValue(new Error('Cannot open'));
+    const result = scenario === 'all-opens-failed' ? await invoke('link:openMany', [id])
+      : invoke('link:bulkTriage', { ids: scenario === 'stale-selection' ? ['missing'] : [id],
+        action: scenario === 'stale-selection' ? { type: 'archive' } : { type: 'ignore-matches', keys: ['a|b'] } });
+    expect(result).toBeNull();
+    expect(invoke('state:load')).toEqual(before);
+    expect(invoke('history:undo')).toEqual(beforePrior);
   });
 
   it.each(['unread', 'later'] as const)('commitsReadWithOpenedAtWithoutOverwritingAnInFlightReview (%s)', async (readingState) => {

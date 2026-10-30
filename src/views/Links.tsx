@@ -40,7 +40,7 @@ export function LinksView() {
     try {
       const result = await run(api.bulkTriage([...selected], action.type === 'ignore-matches'
         ? { type: 'ignore-matches', keys: ignoredPairKeys } : action));
-      if (!result) return false;
+      if (result === null) return false;
       setSelected(new Set());
       const message = action.type === 'add-tags' ? 'Tags added to selected links'
         : action.type === 'assign-plan' ? (action.planId ? 'Selected links assigned to plan' : 'Plan cleared from selected links')
@@ -57,7 +57,7 @@ export function LinksView() {
     setBulkBusy(true);
     try {
       const result = await run(api.openLinks([...selected]));
-      if (result) {
+      if (result !== null) {
         setSelected(new Set());
         showUndoToast('Selected links opened');
       }

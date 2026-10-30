@@ -130,7 +130,11 @@ export const browserApi: FlowApi = {
   removeReminder: async (id) => mutate((current) => core.removeReminder(current, id)),
   ignoreMatch: async (key) => mutate((current) => core.ignoreMatch(current, key)),
   unignoreMatch: async (key) => mutate((current) => core.unignoreMatch(current, key)),
-  bulkTriage: async (ids, action) => mutate((current) => core.bulkTriageLinks(current, ids, action)),
+  bulkTriage: async (ids, action) => {
+    const current = state;
+    const saved = mutate((current) => core.bulkTriageLinks(current, ids, action));
+    return saved === current ? null : saved;
+  },
   openLinks: async (ids) => {
     const selected = new Set(ids);
     const opened = new Set<string>();
@@ -145,14 +149,16 @@ export const browserApi: FlowApi = {
         // Continue opening the selection after an individual browser error.
       }
     }
-    if (opened.size === 0) return state;
+    if (opened.size === 0) return null;
     const lastOpenedAt = new Date().toISOString();
-    return mutate((current) => ({
+    const current = state;
+    const saved = mutate((current) => ({
       ...current,
       items: current.items.map((entry) =>
         entry.kind === 'link' && !entry.archivedAt && opened.has(entry.id) ? { ...entry, readingState: 'read', lastOpenedAt } : entry,
       ),
     }));
+    return saved === current ? null : saved;
   },
   openLink: async (id) => {
     const item = state.items.find((entry) => entry.id === id && entry.kind === 'link');

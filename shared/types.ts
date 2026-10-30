@@ -205,8 +205,10 @@ export interface FlowApi {
   ignoreMatch: (key: string) => Promise<AppState>;
   unignoreMatch: (key: string) => Promise<AppState>;
   openLink: (id: string) => Promise<AppState>;
-  openLinks: (ids: string[]) => Promise<AppState>;
-  bulkTriage: (ids: string[], action: LinkBulkAction) => Promise<AppState>;
+  /** Null means no new undoable state change was committed. */
+  openLinks: (ids: string[]) => Promise<AppState | null>;
+  /** Null means no new undoable state change was committed. */
+  bulkTriage: (ids: string[], action: LinkBulkAction) => Promise<AppState | null>;
   copyText: (text: string) => Promise<void>;
   readClipboard: () => Promise<string>;
   fetchTitle: (url: string) => Promise<string | null>;

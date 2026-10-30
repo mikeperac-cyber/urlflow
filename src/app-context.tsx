@@ -286,6 +286,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async <T,>(promise: Promise<T>, options?: { success?: string }): Promise<T | null> => {
       try {
         const result = await promise;
+        // A cancelled/no-op operation leaves the previous Undo action valid.
+        if (result === null) return null;
         if (result && typeof result === 'object' && 'items' in (result as Record<string, unknown>)) {
           setState(result as unknown as AppState);
         }

@@ -403,24 +403,27 @@ function registerIpc(): void {
     commit(core.unignoreMatch(store.get(), key), 'Restored a match'),
   );
 
-  ipcMain.handle('link:bulkTriage', (_event, { ids, action }: { ids: string[]; action: LinkBulkAction }) =>
-    commit(core.bulkTriageLinks(store.get(), ids, action), 'Triaged links'),
-  );
+  ipcMain.handle('link:bulkTriage', (_event, { ids, action }: { ids: string[]; action: LinkBulkAction }) => {
+    const current = store.get();
+    const saved = commit(core.bulkTriageLinks(current, ids, action), 'Triaged links');
+    return saved === current ? null : saved;
+  });
 
   ipcMain.handle('link:openMany', async (_event, ids: string[]) => {
     const selected = new Set(ids);
     const links = store.get().items.filter((entry) => entry.kind === 'link' && !entry.archivedAt && selected.has(entry.id));
     const opened = new Set(await openLinks(links, (url) => shell.openExternal(url)));
-    if (opened.size === 0) return store.get();
+    if (opened.size === 0) return null;
     // Other actions may have committed while the external opens were pending.
     const current = store.get();
     const lastOpenedAt = new Date().toISOString();
-    return commit({
+    const saved = commit({
       ...current,
       items: current.items.map((entry) =>
         entry.kind === 'link' && !entry.archivedAt && opened.has(entry.id) ? { ...entry, readingState: 'read', lastOpenedAt } : entry,
       ),
     }, 'Opened links');
+    return saved === current ? null : saved;
   });
 
   ipcMain.handle('link:open', async (_event, id: string) => {

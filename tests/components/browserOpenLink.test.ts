@@ -19,7 +19,8 @@ describe('browser link opening', () => {
     const created = await api.create({ kind: 'link', title: 'Archived', url: 'https://example.com/archived' });
     const id = created.items[0].id;
     const before = await api.archive(id);
-    expect(await api.openLinks([id])).toEqual(before);
+    expect(await api.openLinks([id])).toBeNull();
+    expect(await api.load()).toEqual(before);
     expect(window.open).not.toHaveBeenCalled();
     expect((await api.undo())!.items[0].archivedAt).toBeNull();
   });
@@ -28,7 +29,8 @@ describe('browser link opening', () => {
     const created = await api.create({ kind: 'link', title: 'Unsafe', url: 'https://example.com' });
     (created.items[0] as LinkItem).url = url;
     const before = structuredClone(created);
-    expect(await api.openLinks([created.items[0].id])).toEqual(before);
+    expect(await api.openLinks([created.items[0].id])).toBeNull();
+    expect(await api.load()).toEqual(before);
     expect(window.open).not.toHaveBeenCalled();
   });
 
@@ -49,9 +51,9 @@ describe('browser link opening', () => {
     expect(window.open).toHaveBeenCalledTimes(3);
     expect(changes).toHaveLength(1);
     for (const id of [first, last]) {
-      expect(final.items.find((item) => item.id === id)).toMatchObject({ readingState: 'read', lastOpenedAt: now });
+      expect(final!.items.find((item) => item.id === id)).toMatchObject({ readingState: 'read', lastOpenedAt: now });
     }
-    expect(final.items.find((item) => item.id === failed)).toMatchObject({ readingState: 'unread', lastOpenedAt: null });
+    expect(final!.items.find((item) => item.id === failed)).toMatchObject({ readingState: 'unread', lastOpenedAt: null });
     expect(await api.undo()).toEqual(before);
     expect(await api.redo()).toEqual(final);
     off();
@@ -63,9 +65,31 @@ describe('browser link opening', () => {
     const changes: unknown[] = [];
     const off = api.onState((state) => changes.push(state));
     const final = await api.bulkTriage(before.items.map((item) => item.id), { type: 'add-tags', tags: ['Research'] });
-    expect(final.items.every((item) => item.tags.includes('Research'))).toBe(true);
+    expect(final!.items.every((item) => item.tags.includes('Research'))).toBe(true);
     expect(changes).toHaveLength(1);
     expect(await api.undo()).toEqual(before);
+    off();
+  });
+
+  it.each(['stale-selection', 'all-opens-failed', 'unchanged-ignore'] as const)('returnsNullWithoutReplacingPriorHistoryFor%s', async (scenario) => {
+    const beforePrior = await api.create({ kind: 'link', title: 'Saved', url: 'https://example.com' });
+    const id = beforePrior.items[0].id;
+    if (scenario === 'unchanged-ignore') {
+      await api.bulkTriage([id], { type: 'ignore-matches', keys: ['a|b'] });
+    } else {
+      await api.create({ kind: 'note', title: 'Previous change' });
+    }
+    const before = structuredClone(await api.load());
+    vi.mocked(window.open).mockImplementation(() => { throw new Error('Cannot open'); });
+    const changes = vi.fn();
+    const off = api.onState(changes);
+    const result = scenario === 'all-opens-failed' ? await api.openLinks([id])
+      : await api.bulkTriage(scenario === 'stale-selection' ? ['missing'] : [id],
+        scenario === 'stale-selection' ? { type: 'archive' } : { type: 'ignore-matches', keys: ['a|b'] });
+    expect(result).toBeNull();
+    expect(await api.load()).toEqual(before);
+    expect(changes).not.toHaveBeenCalled();
+    expect(await api.undo()).toEqual(beforePrior);
     off();
   });
 
