@@ -409,7 +409,7 @@ function registerIpc(): void {
 
   ipcMain.handle('link:openMany', async (_event, ids: string[]) => {
     const selected = new Set(ids);
-    const links = store.get().items.filter((entry) => entry.kind === 'link' && selected.has(entry.id));
+    const links = store.get().items.filter((entry) => entry.kind === 'link' && !entry.archivedAt && selected.has(entry.id));
     const opened = new Set(await openLinks(links, (url) => shell.openExternal(url)));
     if (opened.size === 0) return store.get();
     // Other actions may have committed while the external opens were pending.
@@ -418,7 +418,7 @@ function registerIpc(): void {
     return commit({
       ...current,
       items: current.items.map((entry) =>
-        entry.kind === 'link' && opened.has(entry.id) ? { ...entry, readingState: 'read', lastOpenedAt } : entry,
+        entry.kind === 'link' && !entry.archivedAt && opened.has(entry.id) ? { ...entry, readingState: 'read', lastOpenedAt } : entry,
       ),
     }, 'Opened links');
   });

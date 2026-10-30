@@ -15,6 +15,23 @@ beforeEach(async () => {
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); localStorage.clear(); });
 
 describe('browser link opening', () => {
+  it('doesNotOpenOrModifyArchivedBatchSelections', async () => {
+    const created = await api.create({ kind: 'link', title: 'Archived', url: 'https://example.com/archived' });
+    const id = created.items[0].id;
+    const before = await api.archive(id);
+    expect(await api.openLinks([id])).toEqual(before);
+    expect(window.open).not.toHaveBeenCalled();
+    expect((await api.undo())!.items[0].archivedAt).toBeNull();
+  });
+
+  it.each(['mailto:user@example.com', 'javascript:1'])('doesNotOpenRawNonHttpBatchTargets (%s)', async (url) => {
+    const created = await api.create({ kind: 'link', title: 'Unsafe', url: 'https://example.com' });
+    (created.items[0] as LinkItem).url = url;
+    const before = structuredClone(created);
+    expect(await api.openLinks([created.items[0].id])).toEqual(before);
+    expect(window.open).not.toHaveBeenCalled();
+  });
+
   it('opensSelectionAndPersistsSuccessfulMetadataInOneUndoStep', async () => {
     const first = (await api.create({ kind: 'link', title: 'First', url: 'https://example.com/first' })).items[0].id;
     const failedState = await api.create({ kind: 'link', title: 'Failed', url: 'https://example.com/failed' });

@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { openLinks } from '../../electron/openLinks';
 
 describe('batch external link opening', () => {
+  it.each(['mailto:user@example.com', 'javascript:1'])('rejectsTheRawNonHttpScheme (%s)', async (url) => {
+    const attempted: string[] = [];
+    const opened = await openLinks([{ id: 'unsafe', url }], (target) => { attempted.push(target); });
+    expect(attempted).toEqual([]);
+    expect(opened).toEqual([]);
+  });
+
   it('opensSafeLinksAndContinuesAfterFailure', async () => {
     const attempted: string[] = [];
     const opened = await openLinks([

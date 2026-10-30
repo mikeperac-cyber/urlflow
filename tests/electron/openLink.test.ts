@@ -52,6 +52,34 @@ afterEach(() => {
 });
 
 describe('desktop link opening', () => {
+  it('doesNotOpenOrModifyArchivedBatchSelections', async () => {
+    const id = create();
+    const before = structuredClone(invoke('item:archive', id));
+    expect(await invoke('link:openMany', [id])).toEqual(before);
+    expect(boundary.openExternal).not.toHaveBeenCalled();
+    expect(invoke('history:undo').items[0].archivedAt).toBeNull();
+  });
+
+  it('preservesMetadataWhenArchivedDuringABatchOpen', async () => {
+    const id = create();
+    let finish!: () => void;
+    boundary.openExternal.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve; }));
+    const opening = invoke('link:openMany', [id]);
+    const archived = structuredClone(invoke('item:archive', id));
+    finish();
+    expect(await opening).toEqual(archived);
+    expect(invoke('history:undo').items[0].archivedAt).toBeNull();
+  });
+
+  it.each(['mailto:user@example.com', 'javascript:1'])('doesNotOpenRawNonHttpBatchTargets (%s)', async (url) => {
+    const id = create();
+    const state: AppState = invoke('state:load');
+    (state.items[0] as LinkItem).url = url;
+    const before = structuredClone(state);
+    expect(await invoke('link:openMany', [id])).toEqual(before);
+    expect(boundary.openExternal).not.toHaveBeenCalled();
+  });
+
   it('opensSelectedLinksInOneUndoStepAndPreservesInFlightEdits', async () => {
     const first = create();
     const failed = create();

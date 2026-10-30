@@ -135,8 +135,10 @@ export const browserApi: FlowApi = {
     const selected = new Set(ids);
     const opened = new Set<string>();
     for (const item of state.items) {
-      if (item.kind !== 'link' || !selected.has(item.id) || !isSafeExternalUrl(item.url)) continue;
+      if (item.kind !== 'link' || item.archivedAt || !selected.has(item.id)) continue;
       try {
+        const protocol = new URL(item.url).protocol;
+        if (protocol !== 'http:' && protocol !== 'https:') continue;
         window.open(item.url, '_blank', 'noopener,noreferrer');
         opened.add(item.id);
       } catch {
@@ -148,7 +150,7 @@ export const browserApi: FlowApi = {
     return mutate((current) => ({
       ...current,
       items: current.items.map((entry) =>
-        entry.kind === 'link' && opened.has(entry.id) ? { ...entry, readingState: 'read', lastOpenedAt } : entry,
+        entry.kind === 'link' && !entry.archivedAt && opened.has(entry.id) ? { ...entry, readingState: 'read', lastOpenedAt } : entry,
       ),
     }));
   },
