@@ -2,6 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { parsePageMetadata } from '../../electron/pageMetadata';
 
 describe('parsePageMetadata', () => {
+  it('ignoresApparentMetadataInsideTitleText', () => {
+    const html = '<title>Using <meta property="og:title" content="Wrong"> safely</title><meta property="og:title" content="Actual">';
+    expect(parsePageMetadata(html, 'https://example.com').title).toBe('Actual');
+    expect(parsePageMetadata('<title>Using <link rel="icon" href="/fake.ico"> safely</title>', 'https://example.com')).toEqual({
+      title: 'Using <link rel="icon" href="/fake.ico"> safely',
+      description: null, siteName: null, faviconUrl: null,
+    });
+  });
+
+  it('leavesUnknownEntitiesMatchingObjectPropertiesLiteral', () => {
+    expect(parsePageMetadata('<title>&constructor; &toString; &amp;</title>', 'https://example.com').title)
+      .toBe('&constructor; &toString; &');
+  });
+
   it('parsesOpenGraphTitleDescriptionSiteNameAndRelativeIcon', () => {
     const html = `
       <title>Fallback title</title>

@@ -13,7 +13,10 @@ function decodeEntities(value: string): string {
     hellip: '…', copy: '©', reg: '®', trade: '™',
   };
   return value.replace(/&(#x[\da-f]+|#\d+|[a-z]+);/gi, (entity, code: string) => {
-    if (!code.startsWith('#')) return named[code.toLowerCase()] ?? entity;
+    if (!code.startsWith('#')) {
+      const key = code.toLowerCase();
+      return Object.hasOwn(named, key) ? named[key] : entity;
+    }
     const number = code[1].toLowerCase() === 'x' ? parseInt(code.slice(2), 16) : Number(code.slice(1));
     return number > 0 && number <= 0x10ffff && !(number >= 0xd800 && number <= 0xdfff)
       ? String.fromCodePoint(number)
@@ -37,15 +40,22 @@ function attributes(tag: string): Record<string, string> {
 }
 
 export function parsePageMetadata(html: string, pageUrl: string): ParsedPageMetadata {
-  const source = html
-    .replace(/<!--[\s\S]*?(?:-->|$)/g, '')
-    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
   const meta = new Map<string, string>();
   let faviconUrl: string | null = null;
+  let title: string | null = null;
   // Quoted values may contain '>'; attribute order and quote style are arbitrary.
-  for (const match of source.matchAll(/<(meta|link)\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi)) {
+  // Consume title/RCDATA and raw-text elements whole so examples inside them
+  // cannot masquerade as metadata. Generic tags consume their attributes too.
+  const tokens = /<!--[\s\S]*?(?:-->|$)|<(title|script|style|textarea|xmp|iframe|noembed|noframes)\b(?:[^>"']|"[^"]*"|'[^']*')*>([\s\S]*?)(?:<\/\1\s*>|$)|<([a-z][\w:-]*)\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi;
+  for (const match of html.matchAll(tokens)) {
+    if (match[1]) {
+      if (match[1].toLowerCase() === 'title' && title === null) title = cleanText(match[2]);
+      continue;
+    }
+    const tagName = match[3]?.toLowerCase();
+    if (tagName !== 'meta' && tagName !== 'link') continue;
     const attrs = attributes(match[0]);
-    if (match[1].toLowerCase() === 'meta') {
+    if (tagName === 'meta') {
       const key = (attrs.property || attrs.name || '').toLowerCase();
       const value = cleanText(attrs.content);
       if (value && !meta.has(key)) meta.set(key, value);
@@ -58,9 +68,8 @@ export function parsePageMetadata(html: string, pageUrl: string): ParsedPageMeta
       }
     }
   }
-  const title = /<title\b[^>]*>([\s\S]*?)<\/title\s*>/i.exec(source);
   return {
-    title: meta.get('og:title') ?? cleanText(title?.[1]),
+    title: meta.get('og:title') ?? title,
     description: meta.get('og:description') ?? meta.get('description') ?? null,
     siteName: meta.get('og:site_name') ?? null,
     faviconUrl,
