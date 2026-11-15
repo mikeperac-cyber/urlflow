@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { emptyState, type AppState, type HistoryStatus } from '../shared/types';
+import { CURRENT_STATE_VERSION, emptyState, type AppState, type HistoryStatus } from '../shared/types';
 import { normalizeState } from '../shared/core';
 
 interface HistorySnapshot {
@@ -25,6 +25,19 @@ export class Store {
     fs.mkdirSync(directory, { recursive: true });
     this.filePath = path.join(directory, 'url-flow-data.json');
     this.state = this.read();
+    // Rewrite a legacy file once so the next launch already reads the current schema.
+    if (this.needsMigration()) this.persist();
+  }
+
+  private needsMigration(): boolean {
+    try {
+      if (!fs.existsSync(this.filePath)) return false;
+      const raw = JSON.parse(fs.readFileSync(this.filePath, 'utf8')) as { version?: unknown };
+      return typeof raw?.version !== 'number' || raw.version < CURRENT_STATE_VERSION;
+    } catch {
+      // A corrupt file is backed up by read(); do not overwrite it here.
+      return false;
+    }
   }
 
   private read(): AppState {

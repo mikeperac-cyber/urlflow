@@ -8,12 +8,47 @@ export type PlanStatus = 'active' | 'paused' | 'done';
 
 export type RepeatRule = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly';
 
+export type TagRuleMatch = 'domain' | 'regex';
+
+export interface TagRule {
+  id: string;
+  pattern: string;
+  matchType: TagRuleMatch;
+  tags: string[];
+  enabled: boolean;
+}
+
 export interface Step {
   id: string;
   text: string;
   done: boolean;
   dueAt?: string | null;
   notes?: string;
+}
+
+export interface PlanTemplateStep {
+  text: string;
+  notes: string;
+  dayOffset: number;
+}
+
+export interface PlanTemplateTask {
+  title: string;
+  notes: string;
+  priority: Priority;
+  dayOffset: number;
+}
+
+export interface PlanTemplate {
+  id: string;
+  name: string;
+  summary: string;
+  color: string;
+  steps: PlanTemplateStep[];
+  tasks: PlanTemplateTask[];
+  linkIds: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Reminder {
@@ -87,6 +122,8 @@ export interface AppState {
   items: AnyItem[];
   reminders: Reminder[];
   ignoredMatches: string[];
+  tagRules: TagRule[];
+  planTemplates: PlanTemplate[];
 }
 
 export type LinkBulkAction =
@@ -267,8 +304,17 @@ export const REPEAT_LABEL: Record<RepeatRule, string> = {
 
 export const PLAN_COLORS = ['#6d8bff', '#a06bff', '#3ecf8e', '#f5a524', '#f2607a', '#2fc9d6'];
 
+export const CURRENT_STATE_VERSION = 2;
+
 export function emptyState(): AppState {
-  return { version: 1, items: [], reminders: [], ignoredMatches: [] };
+  return {
+    version: CURRENT_STATE_VERSION,
+    items: [],
+    reminders: [],
+    ignoredMatches: [],
+    tagRules: [],
+    planTemplates: [],
+  };
 }
 
 export function matchKey(aId: string, bId: string): string {

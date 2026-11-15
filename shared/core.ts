@@ -780,5 +780,5 @@ export function normalizeState(raw: unknown): AppState {
     ? source.ignoredMatches.filter((entry): entry is string => typeof entry === 'string')
     : [];
 
-  return { ...emptyState(), items, reminders, ignoredMatches };
+  return { ...emptyState(), items, reminders, ignoredMatches, tagRules: [], planTemplates: [] };
 }
