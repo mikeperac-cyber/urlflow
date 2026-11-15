@@ -7,13 +7,13 @@ Built with Electron, React and TypeScript. All data lives on this machine — no
 
 ## Install
 
-Version 1.1.0 has three packaging commands:
+Version 1.2.0 has three packaging commands:
 
 | File | Use it when |
 | --- | --- |
-| `release/URL-Flow-Setup-1.1.0.exe` | Signed release installer with automatic updates. Per-user, creates Start Menu and desktop shortcuts. |
-| `release/local/URL-Flow-Setup-1.1.0-LOCAL.exe` | Local installer when release signing/feed are not configured. Update checks are unavailable; install later versions manually. It may be unsigned. |
-| `release/portable/URL-Flow-Portable-1.1.0.exe` | Run without installing. Automatic updates are unavailable. |
+| `release/URL-Flow-Setup-1.2.0.exe` | Signed release installer with automatic updates. Per-user, creates Start Menu and desktop shortcuts. |
+| `release/local/URL-Flow-Setup-1.2.0-LOCAL.exe` | Local installer when release signing/feed are not configured. Update checks are unavailable; install later versions manually. It may be unsigned. |
+| `release/portable/URL-Flow-Portable-1.2.0.exe` | Run without installing. Automatic updates are unavailable. |
 
 Your data is stored in `%APPDATA%\URL Flow\url-flow-data.json`. Use **Settings → Data** to open that
 folder, export a JSON backup, or import one. Backups are validated before they replace anything.

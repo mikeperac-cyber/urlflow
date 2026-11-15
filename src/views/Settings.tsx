@@ -56,6 +56,8 @@ export function SettingsView() {
     setRuleDraft(storedRules ?? []);
   }, [storedRules]);
 
+  const rulesValid = ruleDraft.every((rule) => rule.pattern.trim() !== '' && rule.tags.length > 0);
+
   function addRule() {
     setRuleDraft((current) => [
       ...current,
@@ -446,6 +448,9 @@ export function SettingsView() {
               ))}
             </ul>
           )}
+          {!rulesValid ? (
+            <p className="muted">Every rule needs a pattern and at least one tag.</p>
+          ) : null}
           <div className="settings-row__actions rule-actions">
             <Button variant="subtle" size="sm" icon={<Plus size={13} />} onClick={addRule}>
               Add rule
@@ -453,7 +458,11 @@ export function SettingsView() {
             <Button
               variant="primary"
               size="sm"
-              disabled={savingRules || JSON.stringify(ruleDraft) === JSON.stringify(storedRules ?? [])}
+              disabled={
+                savingRules
+                || !rulesValid
+                || JSON.stringify(ruleDraft) === JSON.stringify(storedRules ?? [])
+              }
               onClick={() => void saveRules()}
             >
               {savingRules ? 'Saving…' : 'Save rules'}
@@ -494,7 +503,7 @@ export function SettingsView() {
       <section className="panel" aria-label="Application updates">
         <header className="panel__head"><div>
           <h3><Download size={16} /> Updates</h3>
-          <p>URL Flow 1.1.0</p>
+          <p>URL Flow 1.2.0</p>
         </div></header>
         <div className="panel__body"><div className="settings-row">
           <div><strong>Application updates</strong><span role="status">{updateMessage}</span></div>
@@ -515,7 +524,7 @@ export function SettingsView() {
             <h3>
               <Info size={16} /> About
             </h3>
-            <p>URL Flow 1.1.0 — a local-first desktop workspace.</p>
+            <p>URL Flow 1.2.0 — a local-first desktop workspace.</p>
           </div>
         </header>
         <div className="panel__body">
