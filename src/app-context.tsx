@@ -20,6 +20,7 @@ import {
   type FlowApi,
   type HistoryStatus,
   type ItemKind,
+  type LinkHealthCheck,
   type LinkItem,
   type LinkMetadata,
   type NoteItem,
@@ -96,6 +97,13 @@ interface AppContextValue {
   paletteOpen: boolean;
   openPalette: () => void;
   closePalette: () => void;
+  healthDialog: string[] | null;
+  openHealthDialog: (ids?: string[]) => void;
+  closeHealthDialog: () => void;
+  healthResults: Record<string, LinkHealthCheck>;
+  healthCheckedAt: string | null;
+  healthRunning: boolean;
+  runHealthCheck: (ids: string[]) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -116,6 +124,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [reminderItem, setReminderItem] = useState<AnyItem | null>(null);
   const [reminderOpen, setReminderOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [healthDialog, setHealthDialog] = useState<string[] | null>(null);
+  const [healthResults, setHealthResults] = useState<Record<string, LinkHealthCheck>>({});
+  const [healthCheckedAt, setHealthCheckedAt] = useState<string | null>(null);
+  const [healthRunning, setHealthRunning] = useState(false);
   const [history, setHistory] = useState<HistoryStatus>({ canUndo: false, canRedo: false });
   const toastSeq = useRef(0);
   const timers = useRef<number[]>([]);
@@ -259,6 +271,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [redo, undo]);
+
+  const runHealthCheck = useCallback(async (ids: string[]) => {
+    setHealthRunning(true);
+    try {
+      const results = await api.checkHealth(ids);
+      setHealthResults((current) => {
+        const next = { ...current };
+        for (const result of results) next[result.id] = result;
+        return next;
+      });
+      setHealthCheckedAt(new Date().toISOString());
+    } catch (error) {
+      pushToast(errorMessage(error), 'error');
+    } finally {
+      setHealthRunning(false);
+    }
+  }, [api, pushToast]);
 
   const navigate = useCallback((name: ViewName, id?: string) => {
     setView({ name, id });
@@ -465,6 +494,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     paletteOpen,
     openPalette: () => setPaletteOpen(true),
     closePalette: () => setPaletteOpen(false),
+    healthDialog,
+    openHealthDialog: (ids) => setHealthDialog(ids ?? []),
+    closeHealthDialog: () => setHealthDialog(null),
+    healthResults,
+    healthCheckedAt,
+    healthRunning,
+    runHealthCheck,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

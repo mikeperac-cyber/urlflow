@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ClipboardPaste, Link2, Plus, Search } from 'lucide-react';
+import { Activity, ClipboardPaste, Link2, Plus, Search } from 'lucide-react';
 import { extractUrl } from '../../shared/url';
 import { isReadingState } from '../../shared/core';
 import { matchKey, type LinkBulkAction, type ReadingState } from '../../shared/types';
@@ -12,7 +12,7 @@ type Filter = 'all' | 'favorites' | 'unfiled';
 type Sort = 'newest' | 'title' | 'opened';
 
 export function LinksView() {
-  const { links, matches, plans, search, openEditor, api, run, pushToast, showUndoToast } = useApp();
+  const { links, matches, plans, search, openEditor, api, run, pushToast, showUndoToast, openHealthDialog, healthResults } = useApp();
   const [filter, setFilter] = useState<Filter>('all');
   const [readingState, setReadingState] = useState<ReadingState | 'all'>('all');
   const [sort, setSort] = useState<Sort>('newest');
@@ -147,6 +147,13 @@ export function LinksView() {
           </label>
           <Button
             variant="subtle"
+            icon={<Activity size={14} />}
+            onClick={() => openHealthDialog(selected.size > 0 ? [...selected] : [])}
+          >
+            Check health
+          </Button>
+          <Button
+            variant="subtle"
             icon={<ClipboardPaste size={14} />}
             onClick={() => void pasteFromClipboard()}
             disabled={pasting}
@@ -214,7 +221,7 @@ export function LinksView() {
       ) : (
         <div className="card-grid">
           {filtered.map((link) => (
-            <LinkCard key={link.id} link={link} selected={selected.has(link.id)} selectionDisabled={bulkBusy}
+            <LinkCard key={link.id} link={link} health={healthResults[link.id]} selected={selected.has(link.id)} selectionDisabled={bulkBusy}
               onSelectedChange={(checked) => setSelected((current) => {
                 const next = new Set(current);
                 if (checked) next.add(link.id);

@@ -36,6 +36,7 @@ const api: FlowApi = {
   saveSnapshot: (id) => ipcRenderer.invoke('snapshot:save', id),
   getSnapshot: (id) => ipcRenderer.invoke('snapshot:get', id),
   deleteSnapshot: (id) => ipcRenderer.invoke('snapshot:delete', id),
+  checkHealth: (ids) => ipcRenderer.invoke('links:checkHealth', ids),
   exportData: () => ipcRenderer.invoke('data:export'),
   importData: () => ipcRenderer.invoke('data:import'),
   revealDataFile: () => ipcRenderer.invoke('data:reveal'),

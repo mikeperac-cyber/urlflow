@@ -4615,3 +4615,78 @@ button.badge:hover {
   text-align: center;
   color: var(--muted);
 }
+
+.badge--health {
+  color: var(--danger, #f2607a);
+  background: color-mix(in srgb, #f2607a 14%, transparent);
+}
+
+.health-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.health-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.health-row.is-broken {
+  border-color: color-mix(in srgb, #f2607a 45%, var(--border));
+  background: color-mix(in srgb, #f2607a 6%, transparent);
+}
+
+.health-row__status {
+  flex: 0 0 auto;
+  min-width: 88px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.health-row.is-ok .health-row__status {
+  color: var(--accent-text);
+}
+
+.health-row.is-broken .health-row__status {
+  color: #f2607a;
+}
+
+.health-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.health-row__main strong {
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-row__main span {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-row__moved {
+  font-size: 11.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

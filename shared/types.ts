@@ -95,6 +95,22 @@ export interface SnapshotContent {
   sourceUrl: string;
 }
 
+export type LinkHealthStatus = number | 'error';
+
+export interface LinkHealthCheck {
+  id: string;
+  status: LinkHealthStatus;
+  finalUrl: string | null;
+  checkedAt: string;
+  /** 404 and 410 usually mean the page is gone for good; others may recover. */
+  permanent: boolean;
+  message: string;
+}
+
+export function isBrokenHealthCheck(check: LinkHealthCheck): boolean {
+  return check.status === 'error' || check.status >= 400;
+}
+
 export interface SnapshotSaveResult {
   state: AppState;
   savedAt: string;
@@ -316,6 +332,7 @@ export interface FlowApi {
   saveSnapshot: (id: string) => Promise<SnapshotSaveResult>;
   getSnapshot: (id: string) => Promise<SnapshotContent | null>;
   deleteSnapshot: (id: string) => Promise<AppState>;
+  checkHealth: (ids: string[]) => Promise<LinkHealthCheck[]>;
   exportData: () => Promise<string | null>;
   importData: () => Promise<AppState | null>;
   revealDataFile: () => Promise<void>;

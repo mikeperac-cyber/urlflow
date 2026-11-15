@@ -10,7 +10,7 @@ function link(id: string, patch: Partial<LinkItem> = {}): LinkItem {
     id, kind: 'link', title: `Page ${id}`, notes: 'Keep these notes',
     tags: ['Research'], planId: null, archivedAt: null, reviewedAt: before,
     createdAt: before, updatedAt: before, readingState: 'later',
-    url: `https://example.com/${id}`, favorite: true, lastOpenedAt: before,
+    url: `https://example.com/${id}`, favorite: true, lastOpenedAt: before, snapshotAt: null,
     description: 'Page description', siteName: 'Example', faviconKey: 'a'.repeat(64),
     ...patch,
   };

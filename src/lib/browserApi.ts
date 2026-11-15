@@ -214,6 +214,7 @@ export const browserApi: FlowApi = {
   deleteSnapshot: async () => {
     throw new Error('Offline snapshots are available in the desktop app.');
   },
+  checkHealth: async () => [],
   exportData: async () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

@@ -22,6 +22,7 @@ import { parseBatchChunk, parseCaptureProtocol } from './deepLink';
 import { fetchPageMetadata, readFaviconDataUrl } from './pageMetadata';
 import { captureSnapshotDocument } from './snapshotCapture';
 import { deleteSnapshot, pruneOrphanSnapshots, readSnapshot, writeSnapshot } from './snapshots';
+import { checkLinks } from './linkHealth';
 import { createBackup, ensureDailyBackup, listBackups as readBackupList, readBackup } from './backups';
 import * as core from '../shared/core';
 import { parseBookmarkFile } from '../shared/bookmarks';
@@ -35,6 +36,7 @@ import type {
   ItemDraft,
   ItemPatch,
   LinkBulkAction,
+  LinkItem,
   MergeFieldChoices,
   Preferences,
   RepeatRule,
@@ -404,21 +406,25 @@ function registerIpc(): void {
     return prefs;
   });
 
-  ipcMain.handle('item:create', async (_event, draft: ItemDraft) => {
+  ipcMain.handle('item:create', (_event, draft: ItemDraft) => {
     const wantsSnapshot = draft.kind === 'link' && (draft.saveSnapshot ?? prefs.autoSnapshotLinks);
+    if (!wantsSnapshot) return commit(core.createItem(store.get(), draft).state, `Created a ${draft.kind}`);
+
     // Capture before creating so the link and its snapshot land in one undo step.
-    const captured = wantsSnapshot ? await captureSnapshotDocument(String(draft.url ?? '')) : null;
-    const result = core.createItem(store.get(), draft);
-    let next = result.state;
-    if (captured) {
-      try {
-        const saved = await writeSnapshot(userDataPath, result.id, captured);
-        next = core.setLinkSnapshot(result.state, result.id, saved.savedAt);
-      } catch {
-        // The link is still worth saving without its snapshot.
+    return (async () => {
+      const captured = await captureSnapshotDocument(String(draft.url ?? ''));
+      const result = core.createItem(store.get(), draft);
+      let next = result.state;
+      if (captured) {
+        try {
+          const saved = await writeSnapshot(userDataPath, result.id, captured);
+          next = core.setLinkSnapshot(result.state, result.id, saved.savedAt);
+        } catch {
+          // The link is still worth saving without its snapshot.
+        }
       }
-    }
-    return commit(next, `Created a ${draft.kind}`);
+      return commit(next, `Created a ${draft.kind}`);
+    })();
   });
 
   ipcMain.handle('capture:batch', (_event, request: BatchCaptureRequest) => {
@@ -588,6 +594,14 @@ function registerIpc(): void {
     const saved = commit(core.setLinkSnapshot(store.get(), String(id ?? ''), null), 'Removed a snapshot');
     void deleteSnapshot(userDataPath, String(id ?? ''));
     return saved;
+  });
+
+  ipcMain.handle('links:checkHealth', (_event, ids: string[]) => {
+    const selected = new Set(Array.isArray(ids) ? ids.slice(0, 200) : []);
+    const targets = store.get().items
+      .filter((item): item is LinkItem => item.kind === 'link' && !item.archivedAt && selected.has(item.id))
+      .map((item) => ({ id: item.id, url: item.url }));
+    return checkLinks(targets, { concurrency: 6 });
   });
 
   ipcMain.handle('data:export', async () => {

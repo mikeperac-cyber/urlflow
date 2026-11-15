@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
+  Activity,
   Archive,
   Bell,
   CheckSquare,
@@ -94,6 +95,7 @@ export function CommandPalette() {
     api,
     pushToast,
     run,
+    openHealthDialog,
   } = useApp();
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -144,6 +146,12 @@ export function CommandPalette() {
           if (result) pushToast('Backup imported', 'success');
         })();
       });
+    }
+    if (!needle || 'check link health'.includes(needle)) {
+      action('health', 'Check link health', <Activity size={15} />, () => {
+        navigate('links');
+        openHealthDialog();
+      }, 'Find broken links');
     }
     if (!needle || 'back up now'.includes(needle)) {
       action('backup-now', 'Back up now', <HardDrive size={15} />, () => {
@@ -229,7 +237,7 @@ export function CommandPalette() {
 
     const groups: Group[] = ['Items', 'Go to', 'Create', 'Actions'];
     return list.sort((a, b) => groups.indexOf(a.group) - groups.indexOf(b.group));
-  }, [paletteOpen, query, links, plans, tasks, notes, undo, redo, api, pushToast, run, navigate, openEditor]);
+  }, [paletteOpen, query, links, plans, tasks, notes, undo, redo, api, pushToast, run, navigate, openEditor, openHealthDialog]);
 
   useEffect(() => {
     setActive((current) => Math.min(Math.max(current, 0), Math.max(0, results.length - 1)));

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  AlertTriangle,
   Archive,
   Bell,
   BookOpen,
@@ -15,7 +16,15 @@ import {
   Star,
   Trash2,
 } from 'lucide-react';
-import { ITEM_KIND_LABEL, type LinkItem, type NoteItem, type PlanItem, type TaskItem } from '../../shared/types';
+import {
+  ITEM_KIND_LABEL,
+  isBrokenHealthCheck,
+  type LinkHealthCheck,
+  type LinkItem,
+  type NoteItem,
+  type PlanItem,
+  type TaskItem,
+} from '../../shared/types';
 import { isReadingState, planProgress } from '../../shared/core';
 import { displayUrl, faviconTone, initialsFor } from '../../shared/url';
 import { useApp } from '../app-context';
@@ -45,12 +54,20 @@ export function PlanBadge({ planId }: { planId: string | null }) {
   );
 }
 
-export function LinkCard({ link, compact = false, selected = false, selectionDisabled = false, onSelectedChange }: {
+export function LinkCard({
+  link,
+  compact = false,
+  selected = false,
+  selectionDisabled = false,
+  onSelectedChange,
+  health,
+}: {
   link: LinkItem;
   compact?: boolean;
   selected?: boolean;
   selectionDisabled?: boolean;
   onSelectedChange?: (selected: boolean) => void;
+  health?: LinkHealthCheck;
 }) {
   const { api, run, openEditor, plans, remindersById, pushToast, archiveItem } = useApp();
   const plan = plans.find((entry) => entry.id === link.planId);
@@ -139,6 +156,11 @@ export function LinkCard({ link, compact = false, selected = false, selectionDis
         {hasSnapshot ? (
           <span className="badge badge--snapshot" title={`Offline snapshot saved ${relativeTime(link.snapshotAt!)}`}>
             <BookOpen size={11} /> Offline
+          </span>
+        ) : null}
+        {health && isBrokenHealthCheck(health) ? (
+          <span className="badge badge--health" title={health.message}>
+            <AlertTriangle size={11} /> Link down
           </span>
         ) : null}
       </div>

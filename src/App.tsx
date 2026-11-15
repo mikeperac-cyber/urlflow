@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Info, X, Zap } from 'lucide-react';
 import { AppProvider, useApp } from './app-context';
 import { CommandPalette } from './components/CommandPalette';
 import { ItemDialog } from './components/ItemDialog';
+import { LinkHealthDialog } from './components/LinkHealthDialog';
 import { MergeDialog } from './components/MergeDialog';
 import { ReminderDialog } from './components/ReminderDialog';
 import { Sidebar } from './components/Sidebar';
@@ -57,6 +58,7 @@ function Shell() {
       <ItemDialog />
       <MergeDialog />
       <ReminderDialog />
+      <LinkHealthDialog />
 
       <div className="toasts" aria-live="polite">
         {toasts.map((toast) => (

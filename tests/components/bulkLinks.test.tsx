@@ -16,6 +16,8 @@ vi.mock('../../src/app-context', () => ({
     api: { bulkTriage: boundary.bulkTriage, openLinks: boundary.openLinks, readFavicon: async () => null },
     run: async (promise: Promise<unknown>) => promise.catch(() => null),
     remindersById: new Map(),
+    healthResults: {} as Record<string, never>,
+    openHealthDialog: vi.fn(),
   }),
 }));
 
