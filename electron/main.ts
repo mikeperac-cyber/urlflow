@@ -20,6 +20,8 @@ import { openLinks } from './openLinks';
 import { createUpdateController, loadElectronUpdater } from './updates';
 import { parseBatchChunk, parseCaptureProtocol } from './deepLink';
 import { fetchPageMetadata, readFaviconDataUrl } from './pageMetadata';
+import { captureSnapshotDocument } from './snapshotCapture';
+import { deleteSnapshot, pruneOrphanSnapshots, readSnapshot, writeSnapshot } from './snapshots';
 import { createBackup, ensureDailyBackup, listBackups as readBackupList, readBackup } from './backups';
 import * as core from '../shared/core';
 import { parseBookmarkFile } from '../shared/bookmarks';
@@ -347,6 +349,16 @@ async function fetchPageTitle(rawUrl: string): Promise<string | null> {
   return metadata?.title?.slice(0, 200) || null;
 }
 
+async function attachSnapshot(linkId: string): Promise<{ state: AppState; savedAt: string; bytes: number }> {
+  const link = store.get().items.find((item) => item.id === linkId && item.kind === 'link');
+  if (!link || link.kind !== 'link') throw new Error('That link no longer exists.');
+  const captured = await captureSnapshotDocument(link.url);
+  if (!captured) throw new Error('Could not capture a readable snapshot for this page.');
+  const saved = await writeSnapshot(userDataPath, linkId, captured);
+  const state = commit(core.setLinkSnapshot(store.get(), linkId, saved.savedAt), 'Saved an offline snapshot');
+  return { state, savedAt: saved.savedAt, bytes: saved.bytes };
+}
+
 function registerIpc(): void {
   ipcMain.handle('update:status', () => updates.getStatus());
   ipcMain.handle('update:check', () => updates.check());
@@ -392,9 +404,21 @@ function registerIpc(): void {
     return prefs;
   });
 
-  ipcMain.handle('item:create', (_event, draft: ItemDraft) => {
+  ipcMain.handle('item:create', async (_event, draft: ItemDraft) => {
+    const wantsSnapshot = draft.kind === 'link' && (draft.saveSnapshot ?? prefs.autoSnapshotLinks);
+    // Capture before creating so the link and its snapshot land in one undo step.
+    const captured = wantsSnapshot ? await captureSnapshotDocument(String(draft.url ?? '')) : null;
     const result = core.createItem(store.get(), draft);
-    return commit(result.state, `Created a ${draft.kind}`);
+    let next = result.state;
+    if (captured) {
+      try {
+        const saved = await writeSnapshot(userDataPath, result.id, captured);
+        next = core.setLinkSnapshot(result.state, result.id, saved.savedAt);
+      } catch {
+        // The link is still worth saving without its snapshot.
+      }
+    }
+    return commit(next, `Created a ${draft.kind}`);
   });
 
   ipcMain.handle('capture:batch', (_event, request: BatchCaptureRequest) => {
@@ -429,9 +453,11 @@ function registerIpc(): void {
     return commit(core.updateItem(store.get(), id, patch), 'Edited an item');
   });
 
-  ipcMain.handle('item:remove', (_event, id: string) =>
-    commit(core.removeItem(store.get(), id), 'Deleted an item'),
-  );
+  ipcMain.handle('item:remove', (_event, id: string) => {
+    const saved = commit(core.removeItem(store.get(), id), 'Deleted an item');
+    void deleteSnapshot(userDataPath, id);
+    return saved;
+  });
   ipcMain.handle('item:archive', (_event, id: string) =>
     commit(core.setArchived(store.get(), id, true), 'Archived an item'),
   );
@@ -556,6 +582,13 @@ function registerIpc(): void {
   ipcMain.handle('net:fetchTitle', (_event, url: string) => fetchPageTitle(String(url ?? '')));
   ipcMain.handle('net:fetchMetadata', (_event, url: string) => fetchPageMetadata(String(url ?? ''), userDataPath));
   ipcMain.handle('favicon:read', (_event, key: string) => readFaviconDataUrl(userDataPath, key));
+  ipcMain.handle('snapshot:save', (_event, id: string) => attachSnapshot(String(id ?? '')));
+  ipcMain.handle('snapshot:get', (_event, id: string) => readSnapshot(userDataPath, String(id ?? '')));
+  ipcMain.handle('snapshot:delete', (_event, id: string) => {
+    const saved = commit(core.setLinkSnapshot(store.get(), String(id ?? ''), null), 'Removed a snapshot');
+    void deleteSnapshot(userDataPath, String(id ?? ''));
+    return saved;
+  });
 
   ipcMain.handle('data:export', async () => {
     const stamp = new Date().toISOString().slice(0, 10);
@@ -656,6 +689,9 @@ app.whenReady().then(() => {
   prefsPath = path.join(userDataPath, 'preferences.json');
   prefs = loadPreferences(prefsPath);
   store = new Store(userDataPath);
+  const snapshotIds = new Set<string>();
+  for (const item of store.get().items) if (item.kind === 'link') snapshotIds.add(item.id);
+  void pruneOrphanSnapshots(userDataPath, snapshotIds);
   ensureDailyBackup(userDataPath, store.get());
   registerIpc();
   createWindow();

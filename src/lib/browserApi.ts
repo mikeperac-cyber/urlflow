@@ -207,6 +207,13 @@ export const browserApi: FlowApi = {
   fetchTitle: async () => null,
   fetchMetadata: async () => null,
   readFavicon: async () => null,
+  saveSnapshot: async () => {
+    throw new Error('Offline snapshots are available in the desktop app.');
+  },
+  getSnapshot: async () => null,
+  deleteSnapshot: async () => {
+    throw new Error('Offline snapshots are available in the desktop app.');
+  },
   exportData: async () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

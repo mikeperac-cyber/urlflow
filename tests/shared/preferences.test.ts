@@ -9,6 +9,7 @@ describe('preferences', () => {
       reminderSound: true,
       quietHoursStart: '',
       quietHoursEnd: '',
+      autoSnapshotLinks: false,
     });
   });
 
@@ -24,8 +25,10 @@ describe('preferences', () => {
     expect(normalizePreferences({ captureShortcut: '  Control+Alt+K  ', reminderSound: false,
       quietHoursStart: '22:00', quietHoursEnd: '07:00' })).toMatchObject({
       captureShortcut: 'Control+Alt+K', reminderSound: false,
-      quietHoursStart: '22:00', quietHoursEnd: '07:00',
+      quietHoursStart: '22:00', quietHoursEnd: '07:00', autoSnapshotLinks: false,
     });
+    expect(normalizePreferences({ autoSnapshotLinks: true })).toMatchObject({ autoSnapshotLinks: true });
+    expect(normalizePreferences({ autoSnapshotLinks: 'yes' })).toMatchObject({ autoSnapshotLinks: false });
   });
 
   it('handlesOvernightQuietHours', () => {

@@ -250,14 +250,13 @@ export function setArchived(state: AppState, id: string, archived: boolean): App
 
 /** Records or clears the offline snapshot timestamp; the file itself is managed in Electron. */
 export function setLinkSnapshot(state: AppState, id: string, savedAt: string | null): AppState {
-  return {
-    ...state,
-    items: state.items.map((item) =>
-      item.id === id && item.kind === 'link'
-        ? { ...item, snapshotAt: savedAt, updatedAt: nowIso() }
-        : item,
-    ),
-  };
+  let found = false;
+  const items = state.items.map((item) => {
+    if (item.id !== id || item.kind !== 'link') return item;
+    found = true;
+    return { ...item, snapshotAt: savedAt, updatedAt: nowIso() };
+  });
+  return found ? { ...state, items } : state;
 }
 
 export function bulkTriageLinks(

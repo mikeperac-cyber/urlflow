@@ -39,7 +39,7 @@ export function ItemDialog() {
 }
 
 function ItemDialogInner() {
-  const { editor, closeEditor, plans, api, run, remindersById, archiveItem } = useApp();
+  const { editor, closeEditor, plans, api, run, remindersById, archiveItem, prefs } = useApp();
   const request = editor!;
   const item = request.item;
   const preset = request.preset ?? {};
@@ -52,6 +52,7 @@ function ItemDialogInner() {
   const [tagText, setTagText] = useState((item?.tags ?? preset.tags ?? []).join(', '));
   const [planId, setPlanId] = useState<string>(item?.planId ?? preset.planId ?? '');
   const [favorite, setFavorite] = useState(item?.kind === 'link' ? item.favorite : Boolean(preset.favorite));
+  const [saveSnapshot, setSaveSnapshot] = useState(preset.saveSnapshot ?? prefs.autoSnapshotLinks);
   const [readingState, setReadingState] = useState<ReadingState>(
     item?.kind === 'link' ? item.readingState : preset.readingState ?? 'unread',
   );
@@ -217,6 +218,7 @@ function ItemDialogInner() {
         draft.siteName = metadata?.siteName ?? null;
         draft.faviconKey = metadata?.faviconKey ?? null;
         if (!cleanTitle) draft.title = hostOf(urlInput) || normalizedFallback(urlInput);
+        draft.saveSnapshot = saveSnapshot;
       }
       if (kind === 'plan') {
         draft.title = cleanTitle || 'Untitled plan';
@@ -584,6 +586,17 @@ function ItemDialogInner() {
             <span className="checkbox__inline">
               <Star size={14} /> Mark as favourite
             </span>
+          </label>
+        ) : null}
+
+        {!item && kind === 'link' ? (
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={saveSnapshot}
+              onChange={(event) => setSaveSnapshot(event.target.checked)}
+            />
+            <span>Save an offline snapshot of this page</span>
           </label>
         ) : null}
 

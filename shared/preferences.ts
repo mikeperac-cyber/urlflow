@@ -6,6 +6,7 @@ export const DEFAULT_PREFERENCES: Readonly<Preferences> = {
   reminderSound: true,
   quietHoursStart: '',
   quietHoursEnd: '',
+  autoSnapshotLinks: false,
 };
 
 function isQuietTime(value: unknown): value is string {
@@ -24,6 +25,8 @@ export function normalizePreferences(raw: unknown): Preferences {
     reminderSound: typeof value.reminderSound === 'boolean' ? value.reminderSound : DEFAULT_PREFERENCES.reminderSound,
     quietHoursStart: isQuietTime(value.quietHoursStart) ? value.quietHoursStart : '',
     quietHoursEnd: isQuietTime(value.quietHoursEnd) ? value.quietHoursEnd : '',
+    autoSnapshotLinks: typeof value.autoSnapshotLinks === 'boolean'
+      ? value.autoSnapshotLinks : DEFAULT_PREFERENCES.autoSnapshotLinks,
   };
 }
 

@@ -95,6 +95,12 @@ export interface SnapshotContent {
   sourceUrl: string;
 }
 
+export interface SnapshotSaveResult {
+  state: AppState;
+  savedAt: string;
+  bytes: number;
+}
+
 export interface LinkMetadata {
   title: string | null;
   description: string | null;
@@ -151,6 +157,8 @@ export interface ItemDraft {
   url?: string;
   favorite?: boolean;
   readingState?: ReadingState;
+  /** Capture a readable offline snapshot after saving; defaults to the preference. */
+  saveSnapshot?: boolean;
   description?: string | null;
   siteName?: string | null;
   faviconKey?: string | null;
@@ -181,6 +189,8 @@ export interface Preferences {
   reminderSound: boolean;
   quietHoursStart: string;
   quietHoursEnd: string;
+  /** Capture a readable snapshot whenever a new link is saved. */
+  autoSnapshotLinks: boolean;
 }
 
 export type UpdateStatus =
@@ -303,6 +313,9 @@ export interface FlowApi {
   fetchTitle: (url: string) => Promise<string | null>;
   fetchMetadata: (url: string) => Promise<LinkMetadata | null>;
   readFavicon: (key: string) => Promise<string | null>;
+  saveSnapshot: (id: string) => Promise<SnapshotSaveResult>;
+  getSnapshot: (id: string) => Promise<SnapshotContent | null>;
+  deleteSnapshot: (id: string) => Promise<AppState>;
   exportData: () => Promise<string | null>;
   importData: () => Promise<AppState | null>;
   revealDataFile: () => Promise<void>;

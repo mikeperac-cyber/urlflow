@@ -343,6 +343,24 @@ export function SettingsView() {
           </div>
           <div className="settings-row">
             <div>
+              <strong>Offline snapshots</strong>
+              <span>
+                Save a readable copy of each new link so it opens without the internet. Older links can still
+                capture one from their card.
+              </span>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                aria-label="Save offline snapshots automatically"
+                checked={prefs.autoSnapshotLinks}
+                onChange={(event) => void setPref('autoSnapshotLinks', event.target.checked)}
+              />
+              <span className="switch__track"><span className="switch__thumb" /></span>
+            </label>
+          </div>
+          <div className="settings-row">
+            <div>
               <strong>Quiet hours</strong>
               <span>Use this computer’s local time. Due reminders wait until quiet hours end. Leave either time empty to turn this off.</span>
             </div>
