@@ -11,7 +11,8 @@ await build({
   platform: 'node',
   format: 'cjs',
   target: 'node22',
-  external: ['electron', 'electron-updater'],
+  // jsdom resolves its default stylesheet relative to __dirname, so it must stay unbundled.
+  external: ['electron', 'electron-updater', 'jsdom'],
   define: { __URL_FLOW_PACKAGE_MODE__: JSON.stringify(packageMode) },
   sourcemap: false,
   logLevel: 'info',

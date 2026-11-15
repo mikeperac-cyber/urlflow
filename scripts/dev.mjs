@@ -46,7 +46,7 @@ const ctx = await context({
   platform: 'node',
   format: 'cjs',
   target: 'node22',
-  external: ['electron', 'electron-updater'],
+  external: ['electron', 'electron-updater', 'jsdom'],
   sourcemap: 'inline',
   logLevel: 'info',
   outExtension: { '.js': '.cjs' },
