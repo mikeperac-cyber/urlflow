@@ -24,6 +24,7 @@ import * as core from '../shared/core';
 import { parseBookmarkFile } from '../shared/bookmarks';
 import { extractUrl, isSafeExternalUrl, normalizeUrl } from '../shared/url';
 import { DEFAULT_PREFERENCES, isInQuietHours, normalizePreferences } from '../shared/preferences';
+import { normalizeTagRules } from '../shared/tagRules';
 import type {
   AppState,
   BookmarkEntry,
@@ -454,6 +455,9 @@ function registerIpc(): void {
   );
   ipcMain.handle('match:unignore', (_event, key: string) =>
     commit(core.unignoreMatch(store.get(), key), 'Restored a match'),
+  );
+  ipcMain.handle('tagRules:save', (_event, rules: unknown) =>
+    commit({ ...store.get(), tagRules: normalizeTagRules(rules) }, 'Updated tag rules'),
   );
 
   ipcMain.handle('link:bulkTriage', (_event, { ids, action }: { ids: string[]; action: LinkBulkAction }) => {

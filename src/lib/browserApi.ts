@@ -1,6 +1,7 @@
 import * as core from '../../shared/core';
 import { parseBookmarkFile } from '../../shared/bookmarks';
 import { isSafeExternalUrl } from '../../shared/url';
+import { normalizeTagRules } from '../../shared/tagRules';
 import { DEFAULT_PREFERENCES, isInQuietHours, normalizePreferences } from '../../shared/preferences';
 import {
   emptyState,
@@ -139,6 +140,7 @@ export const browserApi: FlowApi = {
   removeReminder: async (id) => mutate((current) => core.removeReminder(current, id)),
   ignoreMatch: async (key) => mutate((current) => core.ignoreMatch(current, key)),
   unignoreMatch: async (key) => mutate((current) => core.unignoreMatch(current, key)),
+  saveTagRules: async (rules) => mutate((current) => ({ ...current, tagRules: normalizeTagRules(rules) })),
   bulkTriage: async (ids, action) => {
     const current = state;
     const saved = mutate((current) => core.bulkTriageLinks(current, ids, action));

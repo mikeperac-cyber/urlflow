@@ -23,6 +23,7 @@ const api: FlowApi = {
   removeReminder: (id) => ipcRenderer.invoke('reminder:remove', id),
   ignoreMatch: (key) => ipcRenderer.invoke('match:ignore', key),
   unignoreMatch: (key) => ipcRenderer.invoke('match:unignore', key),
+  saveTagRules: (rules) => ipcRenderer.invoke('tagRules:save', rules),
   openLink: (id) => ipcRenderer.invoke('link:open', id),
   openLinks: (ids) => ipcRenderer.invoke('link:openMany', ids),
   bulkTriage: (ids, action) => ipcRenderer.invoke('link:bulkTriage', { ids, action }),

@@ -19,6 +19,8 @@ import {
   type Step,
   type TaskItem,
 } from './types';
+import { cleanTags } from './tags';
+import { normalizeTagRules, tagsForUrl } from './tagRules';
 import { displayUrl, isSafeExternalUrl, normalizeUrl } from './url';
 
 export function isReadingState(value: unknown): value is ReadingState {
@@ -34,20 +36,6 @@ export function newId(): string {
     return globalThis.crypto.randomUUID();
   }
   return `id_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function cleanTags(tags: unknown): string[] {
-  if (!Array.isArray(tags)) return [];
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of tags) {
-    const tag = String(raw ?? '').trim().replace(/^#+/, '');
-    const key = tag.toLowerCase();
-    if (!tag || seen.has(key)) continue;
-    seen.add(key);
-    out.push(tag.slice(0, 32));
-  }
-  return out.slice(0, 20);
 }
 
 function cleanLinkEnrichment(source: Pick<ItemDraft, 'description' | 'siteName' | 'faviconKey'>) {
@@ -127,6 +115,7 @@ export function createItem(state: AppState, draft: ItemDraft): { state: AppState
         readingState: isReadingState(draft.readingState) ? draft.readingState : 'unread',
         title: base.title || normalized.key.replace(/^https?:\/\//, ''),
         url,
+        tags: cleanTags([...base.tags, ...tagsForUrl(url, state.tagRules)]),
         favorite: Boolean(draft.favorite),
         lastOpenedAt: null,
       };
@@ -645,7 +634,10 @@ export function importBookmarks(
       kind: 'link',
       title: String(entry.title ?? '').trim().slice(0, 300) || displayUrl(normalized.url),
       notes: '',
-      tags: tagFolders ? cleanTags([entry.folder]) : [],
+      tags: cleanTags([
+        ...(tagFolders ? [entry.folder] : []),
+        ...tagsForUrl(normalized.url, state.tagRules),
+      ]),
       planId: null,
       archivedAt: null,
       reviewedAt: null,
@@ -780,5 +772,12 @@ export function normalizeState(raw: unknown): AppState {
     ? source.ignoredMatches.filter((entry): entry is string => typeof entry === 'string')
     : [];
 
-  return { ...emptyState(), items, reminders, ignoredMatches, tagRules: [], planTemplates: [] };
+  return {
+    ...emptyState(),
+    items,
+    reminders,
+    ignoredMatches,
+    tagRules: normalizeTagRules(source.tagRules),
+    planTemplates: [],
+  };
 }
