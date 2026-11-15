@@ -1,8 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+interface ClickInfo {
+  menuItemId: string;
+  linkUrl?: string;
+  selectionText?: string;
+}
+
 describe('browser context-menu capture', () => {
   let installed: () => void;
-  let clicked: (info: { menuItemId: string; linkUrl?: string }, tab?: { url?: string; title?: string }) => void;
+  let clicked: (info: ClickInfo, tab?: { url?: string; title?: string }) => void;
   let chromeMock: any;
 
   beforeEach(async () => {
@@ -10,6 +16,7 @@ describe('browser context-menu capture', () => {
     chromeMock = {
       runtime: { onInstalled: { addListener: vi.fn((handler) => { installed = handler; }) } },
       contextMenus: {
+        removeAll: vi.fn((callback?: () => void) => callback?.()),
         create: vi.fn(),
         onClicked: { addListener: vi.fn((handler) => { clicked = handler; }) },
       },
@@ -21,15 +28,21 @@ describe('browser context-menu capture', () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
-  it('registersPageAndLinkMenusWithoutOpeningCapture', () => {
+  it('registersPageLinkAndSelectionMenusWithoutOpeningCapture', () => {
     installed();
+    expect(chromeMock.contextMenus.removeAll).toHaveBeenCalledTimes(1);
+    expect(chromeMock.contextMenus.removeAll.mock.invocationCallOrder[0])
+      .toBeLessThan(chromeMock.contextMenus.create.mock.invocationCallOrder[0]);
     expect(chromeMock.contextMenus.create).toHaveBeenCalledWith({
       id: 'urlflow-capture-page', title: 'Save page to URL Flow', contexts: ['page'],
     });
     expect(chromeMock.contextMenus.create).toHaveBeenCalledWith({
       id: 'urlflow-capture-link', title: 'Save link to URL Flow', contexts: ['link'],
     });
-    expect(chromeMock.contextMenus.create).toHaveBeenCalledTimes(2);
+    expect(chromeMock.contextMenus.create).toHaveBeenCalledWith({
+      id: 'urlflow-capture-selection', title: 'Save selection to URL Flow', contexts: ['selection'],
+    });
+    expect(chromeMock.contextMenus.create).toHaveBeenCalledTimes(3);
     expect(chromeMock.tabs.create).not.toHaveBeenCalled();
   });
 
@@ -49,10 +62,22 @@ describe('browser context-menu capture', () => {
     expect(capture.searchParams.get('title')).toBe('Current title');
   });
 
+  it('passesTheSelectedTextWithThePageContext', () => {
+    clicked(
+      { menuItemId: 'urlflow-capture-selection', selectionText: 'Highlighted text\nsecond line' },
+      { url: 'https://active.test/page', title: 'Page title' },
+    );
+    const capture = new URL(chromeMock.tabs.create.mock.calls[0][0].url);
+    expect(capture.searchParams.get('url')).toBe('https://active.test/page');
+    expect(capture.searchParams.get('title')).toBe('Page title');
+    expect(capture.searchParams.get('selection')).toBe('Highlighted text\nsecond line');
+  });
+
   it('ignoresUnknownMenusAndMissingTargets', () => {
     clicked({ menuItemId: 'other' }, { url: 'https://active.test/' });
     clicked({ menuItemId: 'urlflow-capture-page' });
     clicked({ menuItemId: 'urlflow-capture-link' }, { url: 'https://active.test/' });
+    clicked({ menuItemId: 'urlflow-capture-selection' }, { url: 'https://active.test/' });
     expect(chromeMock.tabs.create).not.toHaveBeenCalled();
   });
 });

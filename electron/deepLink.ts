@@ -1,3 +1,4 @@
+import { MAX_SELECTION_LENGTH } from '../shared/capture';
 import type { CapturePayload } from '../shared/types';
 import { isSafeExternalUrl, normalizeUrl } from '../shared/url';
 
@@ -22,7 +23,13 @@ export function parseCaptureProtocol(raw: string): CapturePayload | null {
     const url = normalizeUrl(rawUrl).url;
     if (!isSafeExternalUrl(url)) return null;
     const title = request.searchParams.get('title')?.trim();
-    return { url, ...(title ? { title } : {}), mode: 'dialog' };
+    const selection = request.searchParams.get('selection')?.trim().slice(0, MAX_SELECTION_LENGTH);
+    return {
+      url,
+      ...(title ? { title } : {}),
+      ...(selection ? { selection } : {}),
+      mode: 'dialog',
+    };
   } catch {
     return null;
   }

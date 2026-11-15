@@ -11,6 +11,16 @@ describe('parseCaptureProtocol', () => {
       .toEqual({ url: 'https://example.com/', mode: 'dialog' });
   });
 
+  it('parsesAndCapsASelection', () => {
+    expect(parseCaptureProtocol('urlflow://add?url=https%3A%2F%2Fexample.com&selection=%20High%20light%20%20'))
+      .toEqual({ url: 'https://example.com/', mode: 'dialog', selection: 'High light' });
+    const long = 'x'.repeat(2500);
+    const parsed = parseCaptureProtocol(`urlflow://add?url=https%3A%2F%2Fexample.com&selection=${encodeURIComponent(long)}`);
+    expect(parsed?.selection).toHaveLength(2000);
+    expect(parseCaptureProtocol('urlflow://add?url=https%3A%2F%2Fexample.com&selection=%20%20'))
+      .toEqual({ url: 'https://example.com/', mode: 'dialog' });
+  });
+
   it('protocolCaptureUsesDialogMode', () => {
     expect(parseCaptureProtocol('urlflow://add?url=https%3A%2F%2Fexample.com&mode=clipboard&requestId=external'))
       .toEqual({ url: 'https://example.com/', mode: 'dialog' });

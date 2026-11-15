@@ -13,6 +13,17 @@ describe('createCaptureUrl', () => {
     expect([...capture.searchParams.keys()]).toEqual(['url', 'title']);
   });
 
+  it('includesSelectionOnlyWhenPresent', () => {
+    const withSelection = new URL(createCaptureUrl('https://example.com/', 'Title', '  Quoted text  '));
+    expect(withSelection.searchParams.get('selection')).toBe('Quoted text');
+    expect([...withSelection.searchParams.keys()]).toEqual(['url', 'title', 'selection']);
+
+    for (const selection of [undefined, '', '   ']) {
+      const without = new URL(createCaptureUrl('https://example.com/', 'Title', selection));
+      expect(without.searchParams.has('selection')).toBe(false);
+    }
+  });
+
   it('omitsEmptyTitle', () => {
     for (const title of [undefined, '', '   ']) {
       const capture = new URL(createCaptureUrl('https://example.com/', title));

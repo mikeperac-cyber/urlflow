@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { selectionQuote } from '../shared/capture';
 import { findMatches } from '../shared/matching';
 import { buildReviewQueue, type ReviewEntry } from '../shared/review';
 import { normalizePreferences } from '../shared/preferences';
@@ -261,13 +262,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Protocol captures open the editor; tray/shortcut captures save directly.
   useEffect(() => {
-    return api.onCapture(({ url, title, mode, requestId }) => {
+    return api.onCapture(({ url, title, mode, requestId, selection }) => {
       if (!url) {
         pushToast('Copy a link first, then try again', 'error');
         return;
       }
       if (mode === 'dialog') {
-        const request: EditorRequest = { kind: 'link', preset: { url, title }, requestId };
+        const notes = selection ? selectionQuote(selection) : '';
+        const request: EditorRequest = {
+          kind: 'link',
+          preset: { url, title, ...(notes ? { notes } : {}) },
+          requestId,
+        };
         // Delivery can include several startup captures in the same turn. Keep
         // them with the active editor so arrival never replaces unsaved input.
         setEditors((current) => current.active
