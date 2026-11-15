@@ -2,10 +2,13 @@ import { useState } from 'react';
 import {
   Archive,
   Bell,
+  BookOpen,
   CalendarClock,
   Check,
   Copy,
+  Download,
   ExternalLink,
+  Loader2,
   Pencil,
   Pin,
   RotateCcw,
@@ -19,6 +22,7 @@ import { useApp } from '../app-context';
 import { dueInfo, formatDate, relativeTime, reminderInfo } from '../lib/dates';
 import { Confirm, IconButton, Progress, TagPill } from './ui';
 import { Favicon } from './Favicon';
+import { SnapshotReader } from './SnapshotReader';
 
 export function PlanBadge({ planId }: { planId: string | null }) {
   const { plans, navigate } = useApp();
@@ -51,6 +55,17 @@ export function LinkCard({ link, compact = false, selected = false, selectionDis
   const { api, run, openEditor, plans, remindersById, pushToast, archiveItem } = useApp();
   const plan = plans.find((entry) => entry.id === link.planId);
   const reminder = remindersById.get(link.id);
+  const [readerOpen, setReaderOpen] = useState(false);
+  const [snapshotBusy, setSnapshotBusy] = useState(false);
+  const [confirmRemoveSnapshot, setConfirmRemoveSnapshot] = useState(false);
+  const hasSnapshot = Boolean(link.snapshotAt);
+
+  async function captureSnapshot() {
+    setSnapshotBusy(true);
+    const saved = await run(api.saveSnapshot(link.id), { success: 'Offline snapshot saved' });
+    setSnapshotBusy(false);
+    if (saved) setReaderOpen(true);
+  }
 
   return (
     <article className={`link-card${onSelectedChange && selected ? ' is-selected' : ''}`} data-item-id={link.id} onClick={() => openEditor({ kind: 'link', item: link })}>
@@ -121,6 +136,11 @@ export function LinkCard({ link, compact = false, selected = false, selectionDis
             <Bell size={11} /> {reminderInfo(reminder.remindAt).label}
           </span>
         ) : null}
+        {hasSnapshot ? (
+          <span className="badge badge--snapshot" title={`Offline snapshot saved ${relativeTime(link.snapshotAt!)}`}>
+            <BookOpen size={11} /> Offline
+          </span>
+        ) : null}
       </div>
 
       <footer className="card-footer">
@@ -128,6 +148,39 @@ export function LinkCard({ link, compact = false, selected = false, selectionDis
           {link.lastOpenedAt ? `Opened ${relativeTime(link.lastOpenedAt)}` : `Saved ${relativeTime(link.createdAt)}`}
         </span>
         <div className="card-footer__actions">
+          {hasSnapshot ? (
+            <IconButton
+              label="Read offline"
+              onClick={(event) => {
+                event.stopPropagation();
+                setReaderOpen(true);
+              }}
+            >
+              <BookOpen size={14} />
+            </IconButton>
+          ) : (
+            <IconButton
+              label={snapshotBusy ? 'Saving offline snapshot' : 'Save offline snapshot'}
+              disabled={snapshotBusy}
+              onClick={(event) => {
+                event.stopPropagation();
+                void captureSnapshot();
+              }}
+            >
+              {snapshotBusy ? <Loader2 size={14} className="spin" /> : <Download size={14} />}
+            </IconButton>
+          )}
+          {hasSnapshot ? (
+            <IconButton
+              label="Remove offline snapshot"
+              onClick={(event) => {
+                event.stopPropagation();
+                setConfirmRemoveSnapshot(true);
+              }}
+            >
+              <Trash2 size={14} />
+            </IconButton>
+          ) : null}
           <IconButton
             label={link.favorite ? 'Remove favourite' : 'Add favourite'}
             onClick={(event) => {
@@ -169,6 +222,19 @@ export function LinkCard({ link, compact = false, selected = false, selectionDis
           </IconButton>
         </div>
       </footer>
+
+      {readerOpen ? <SnapshotReader link={link} onClose={() => setReaderOpen(false)} /> : null}
+      {confirmRemoveSnapshot ? (
+        <Confirm
+          title="Remove this offline snapshot?"
+          message="The link stays, but its saved text is deleted from this computer."
+          confirmLabel="Remove"
+          onConfirm={() => {
+            void run(api.deleteSnapshot(link.id), { success: 'Offline snapshot removed' });
+          }}
+          onClose={() => setConfirmRemoveSnapshot(false)}
+        />
+      ) : null}
     </article>
   );
 }

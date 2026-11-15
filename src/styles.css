@@ -4516,3 +4516,102 @@ button.badge:hover {
     justify-self: start;
   }
 }
+
+/* --------------------------------------------------------- offline snapshots */
+
+.badge--snapshot {
+  color: var(--accent-text);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.snapshot-reader {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.snapshot-reader__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.snapshot-reader__body {
+  max-width: 70ch;
+  overflow-wrap: anywhere;
+}
+
+.snapshot-reader__body h3 {
+  margin: 18px 0 8px;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+.snapshot-reader__body h4 {
+  margin: 16px 0 6px;
+  font-size: 16px;
+}
+
+.snapshot-reader__body h5 {
+  margin: 14px 0 4px;
+  font-size: 14px;
+}
+
+.snapshot-reader__body p {
+  margin: 0 0 12px;
+}
+
+.snapshot-reader__body ul {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+
+.snapshot-reader__body li {
+  margin-bottom: 4px;
+}
+
+.snapshot-reader__body blockquote {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--muted);
+}
+
+.snapshot-reader__body pre,
+.snapshot-reader__source {
+  margin: 0;
+  padding: 12px;
+  border-radius: 9px;
+  background: var(--panel-2);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.snapshot-reader__empty {
+  margin: 0;
+  padding: 18px;
+  text-align: center;
+  color: var(--muted);
+}
