@@ -24,6 +24,8 @@ import { isSafeExternalUrl } from '../../shared/url';
 import type { Step } from '../../shared/types';
 import { useApp } from '../app-context';
 import { LinkCard, NoteCard, TaskRow } from '../components/items';
+import { Backlinks } from '../components/Backlinks';
+import { WikiText } from '../components/WikiText';
 import { Button, Confirm, EmptyState, IconButton, Progress, TagPill } from '../components/ui';
 import { formatDate, fromInputValue, reminderInfo, toInputValue } from '../lib/dates';
 
@@ -189,7 +191,11 @@ export function PlanDetail() {
             ))}
           </div>
           <h2>{plan.title}</h2>
-          {plan.summary ? <p className="plan-hero__summary">{plan.summary}</p> : null}
+          {plan.summary ? (
+            <p className="plan-hero__summary">
+              <WikiText text={plan.summary} />
+            </p>
+          ) : null}
           <div className="plan-hero__progress">
             <Progress percent={progress.percent} color={plan.color} height={8} />
             <span>
@@ -407,7 +413,9 @@ export function PlanDetail() {
             </header>
             <div className="panel__body">
               {plan.notes.trim() ? (
-                <div className="prose">{plan.notes}</div>
+                <div className="prose">
+                  <WikiText text={plan.notes} />
+                </div>
               ) : (
                 <p className="muted">No notes on this plan yet. Use Edit to add background, links or decisions.</p>
               )}
@@ -568,6 +576,8 @@ export function PlanDetail() {
           ) : null}
         </div>
       </div>
+
+      <Backlinks itemId={plan.id} />
 
       {confirmLaunch ? (
         <Confirm

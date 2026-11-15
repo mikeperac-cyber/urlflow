@@ -17,6 +17,7 @@ import { useApp } from '../app-context';
 import { defaultReminderValue, fromDateInput, fromInputValue, toInputValue, tomorrowAt } from '../lib/dates';
 import { Button, Field, IconButton, Modal, Segmented } from './ui';
 import { Favicon } from './Favicon';
+import { WikiLinkEditor } from './WikiLinkEditor';
 import { usePageMetadata } from './usePageMetadata';
 
 const KIND_OPTIONS: { value: ItemKind; label: string }[] = [
@@ -339,14 +340,17 @@ function ItemDialogInner() {
 
         {kind === 'plan' ? (
           <>
-            <Field label="Summary" hint="One or two lines about the outcome.">
-              <input
-                className="input"
+            <div className="field">
+              <span className="field__label">Summary</span>
+              <WikiLinkEditor
                 value={summary}
-                onChange={(event) => setSummary(event.target.value)}
+                onChange={setSummary}
+                ariaLabel="Plan summary"
+                rows={2}
                 placeholder="Launch a personal site with three case studies"
               />
-            </Field>
+              <span className="field__hint">One or two lines about the outcome. Type [[ to link an item.</span>
+            </div>
             <div className="field-row field-row--two">
               <Field label="Status">
                 <select
@@ -519,19 +523,21 @@ function ItemDialogInner() {
           </section>
         ) : null}
 
-        <Field label={kind === 'note' ? 'Note' : 'Notes'}>
-          <textarea
-            className="input textarea"
-            rows={kind === 'note' ? 10 : 4}
+        <div className="field">
+          <span className="field__label">{kind === 'note' ? 'Note' : 'Notes'}</span>
+          <WikiLinkEditor
             value={notes}
-            onChange={(event) => setNotes(event.target.value)}
+            onChange={setNotes}
+            ariaLabel={kind === 'note' ? 'Note' : 'Notes'}
+            rows={kind === 'note' ? 10 : 4}
             placeholder={
               kind === 'note'
                 ? 'Write freely — this is your space for details, quotes and ideas.'
                 : 'Context, decisions, follow-ups…'
             }
           />
-        </Field>
+          <span className="field__hint">Type [[ to link another item.</span>
+        </div>
 
         <Field label="Tags" hint="Comma separated, e.g. design, reading, client">
           <input

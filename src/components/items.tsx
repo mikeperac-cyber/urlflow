@@ -32,6 +32,8 @@ import { dueInfo, formatDate, relativeTime, reminderInfo } from '../lib/dates';
 import { Confirm, IconButton, Progress, TagPill } from './ui';
 import { Favicon } from './Favicon';
 import { SnapshotReader } from './SnapshotReader';
+import { Backlinks } from './Backlinks';
+import { WikiText } from './WikiText';
 
 export function PlanBadge({ planId }: { planId: string | null }) {
   const { plans, navigate } = useApp();
@@ -452,7 +454,7 @@ export function NoteCard({ note, compact = false }: { note: NoteItem; compact?: 
         </IconButton>
       </header>
       <p className={`note-card__body ${compact ? 'note-card__body--clamp' : ''}`}>
-        {note.notes || 'No content yet.'}
+        {note.notes ? <WikiText text={note.notes} /> : 'No content yet.'}
       </p>
       <footer className="note-card__footer">
         <PlanBadge planId={note.planId} />
@@ -467,6 +469,7 @@ export function NoteCard({ note, compact = false }: { note: NoteItem; compact?: 
           <Archive size={13} />
         </IconButton>
       </footer>
+      <Backlinks itemId={note.id} />
     </article>
   );
 }
