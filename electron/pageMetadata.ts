@@ -106,20 +106,33 @@ async function cacheFavicon(iconUrl: string, userDataPath: string, signal: Abort
   }
 }
 
+/** Fetches an HTML page with the same redirect and MIME checks as metadata capture. */
+export async function fetchPageHtml(
+  rawUrl: string,
+  signal: AbortSignal,
+  limit: number,
+): Promise<{ html: string; finalUrl: string } | null> {
+  const url = webUrl(rawUrl);
+  if (!url) return null;
+  const response = await fetchWebResponse(url, signal, 'text/html,application/xhtml+xml');
+  if (!response) return null;
+  const mime = (response.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
+  if (mime && mime !== 'text/html' && mime !== 'application/xhtml+xml') { cancelBody(response); return null; }
+  const bytes = await readBoundedBody(response, limit, true);
+  if (!bytes) return null;
+  return { html: bytes.toString('utf8'), finalUrl: response.url };
+}
+
 export async function fetchPageMetadata(rawUrl: string, userDataPath: string): Promise<LinkMetadata | null> {
   const url = webUrl(rawUrl);
   if (!url) return null;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 9000);
   try {
-    const response = await fetchWebResponse(url, controller.signal, 'text/html,application/xhtml+xml');
-    if (!response) return null;
-    const mime = (response.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
-    if (mime && mime !== 'text/html' && mime !== 'application/xhtml+xml') { cancelBody(response); return null; }
-    const bytes = await readBoundedBody(response, HTML_LIMIT, true);
-    if (!bytes) return null;
-    const parsed = parsePageMetadata(bytes.toString('utf8'), response.url);
-    const iconUrl = parsed.faviconUrl ?? new URL('/favicon.ico', response.url).href;
+    const page = await fetchPageHtml(url, controller.signal, HTML_LIMIT);
+    if (!page) return null;
+    const parsed = parsePageMetadata(page.html, page.finalUrl);
+    const iconUrl = parsed.faviconUrl ?? new URL('/favicon.ico', page.finalUrl).href;
     const faviconKey = await cacheFavicon(iconUrl, userDataPath, controller.signal);
     return {
       title: parsed.title?.slice(0, 300) || null,
