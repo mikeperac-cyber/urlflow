@@ -42,6 +42,12 @@ export interface NormalizedUrl {
   key: string;
 }
 
+/** True for parameters that only carry campaign or referrer tracking. */
+export function isTrackingParam(name: string): boolean {
+  const lower = name.toLowerCase();
+  return TRACKING_PARAMS.has(lower) || lower.startsWith('utm_');
+}
+
 export function normalizeUrl(input: unknown): NormalizedUrl {
   const raw = String(input ?? '').trim();
   if (!raw) return { url: '', key: '' };
@@ -49,17 +55,14 @@ export function normalizeUrl(input: unknown): NormalizedUrl {
   try {
     parsed = new URL(ensureProtocol(raw));
   } catch {
-    return { url: raw, key: raw.toLowerCase() };
+    return { url: raw, key: raw };
   }
   const protocol = parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.protocol : 'https:';
   let host = parsed.hostname.toLowerCase();
   if (host.startsWith('www.')) host = host.slice(4);
 
   const params = [...parsed.searchParams.entries()]
-    .filter(([name]) => {
-      const lower = name.toLowerCase();
-      return !TRACKING_PARAMS.has(lower) && !lower.startsWith('utm_');
-    })
+    .filter(([name]) => !isTrackingParam(name))
     .sort(([a], [b]) => a.localeCompare(b));
 
   let path = parsed.pathname;
@@ -71,7 +74,8 @@ export function normalizeUrl(input: unknown): NormalizedUrl {
 
   const query = params.map(([k, v]) => (v ? `${k}=${v}` : k)).join('&');
   const url = `${protocol}//${host}${port}${path}${query ? `?${query}` : ''}`;
-  return { url, key: url.toLowerCase() };
+  // Paths and query values are case-sensitive; only the host was folded above.
+  return { url, key: url };
 }
 
 export function hostOf(url: string): string {

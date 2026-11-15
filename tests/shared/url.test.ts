@@ -23,6 +23,22 @@ describe('URL normalization and external opening', () => {
     expect(isSafeExternalUrl(normalized.url)).toBe(true);
   });
 
+  it('keepsFunctionalParamsAndStripsTrackingParams', () => {
+    expect(normalizeUrl('https://example.com/watch?v=abc&utm_campaign=x&ref=feed&si=token&page=2&refresh=1').url)
+      .toBe('https://example.com/watch?page=2&refresh=1&v=abc');
+  });
+
+  it('preservesPathAndQueryCaseWhileFoldingHostAndDefaultPort', () => {
+    expect(normalizeUrl('HTTP://WWW.Example.com:80/Docs/Page/?Q=AbC#top')).toEqual({
+      url: 'http://example.com/Docs/Page?Q=AbC',
+      key: 'http://example.com/Docs/Page?Q=AbC',
+    });
+  });
+
+  it('keepsUnparsableInputVerbatimInUrlAndKey', () => {
+    expect(normalizeUrl('https://[broken')).toEqual({ url: 'https://[broken', key: 'https://[broken' });
+  });
+
   it('preservesMalformedInputWithoutTreatingItAsSafe', () => {
     expect(normalizeUrl('')).toEqual({ url: '', key: '' });
     expect(normalizeUrl('https://[broken')).toEqual({ url: 'https://[broken', key: 'https://[broken' });
