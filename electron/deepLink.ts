@@ -2,6 +2,39 @@ import { MAX_SELECTION_LENGTH } from '../shared/capture';
 import type { CapturePayload } from '../shared/types';
 import { isSafeExternalUrl, normalizeUrl } from '../shared/url';
 
+export interface BatchChunk {
+  batchId: string;
+  index: number;
+  total: number;
+  data: string;
+}
+
+/** Parses one chunk of a chunked `urlflow://add` batch request. */
+export function parseBatchChunk(raw: string): BatchChunk | null {
+  try {
+    const request = new URL(raw);
+    if (
+      request.protocol !== 'urlflow:' || request.hostname !== 'add' ||
+      request.pathname !== '' || request.username || request.password || request.port
+    ) return null;
+
+    decodeURIComponent(request.search);
+    const batchId = request.searchParams.get('batchId') ?? '';
+    const data = request.searchParams.get('d') ?? '';
+    const indexRaw = request.searchParams.get('i') ?? '';
+    const totalRaw = request.searchParams.get('n') ?? '';
+    if (!/^[A-Za-z0-9_-]{8,64}$/.test(batchId)) return null;
+    if (!/^[A-Za-z0-9_-]{1,2000}$/.test(data)) return null;
+    if (!/^\d{1,2}$/.test(indexRaw) || !/^\d{1,2}$/.test(totalRaw)) return null;
+    const index = Number(indexRaw);
+    const total = Number(totalRaw);
+    if (total < 1 || total > 60 || index >= total) return null;
+    return { batchId, index, total, data };
+  } catch {
+    return null;
+  }
+}
+
 export function parseCaptureProtocol(raw: string): CapturePayload | null {
   try {
     const request = new URL(raw);

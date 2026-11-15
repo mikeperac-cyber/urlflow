@@ -260,9 +260,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [redo, undo]);
 
+  const navigate = useCallback((name: ViewName, id?: string) => {
+    setView({ name, id });
+    setSearch('');
+    setHighlightId(null);
+    window.scrollTo({ top: 0 });
+  }, []);
+
   // Protocol captures open the editor; tray/shortcut captures save directly.
   useEffect(() => {
-    return api.onCapture(({ url, title, mode, requestId, selection }) => {
+    return api.onCapture(({ url, title, mode, requestId, selection, batch }) => {
+      if (batch) {
+        void (async () => {
+          try {
+            const result = await api.createBatch(batch);
+            if (result.duplicated) return;
+            setState(result.state);
+            if (result.planId) {
+              showUndoToast(`Plan created with ${result.added} links`);
+              navigate('plan', result.planId);
+              return;
+            }
+            if (result.added === 0) {
+              pushToast('No tabs could be saved from that batch', 'error');
+              return;
+            }
+            const skipped = result.skipped > 0 ? `, skipped ${result.skipped}` : '';
+            showUndoToast(`Saved ${result.added} tabs${skipped}`);
+          } catch (error) {
+            pushToast(errorMessage(error), 'error');
+          }
+        })();
+        return;
+      }
       if (!url) {
         pushToast('Copy a link first, then try again', 'error');
         return;
@@ -295,7 +325,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       })();
     });
-  }, [pushToast, showUndoToast]);
+  }, [navigate, pushToast, showUndoToast]);
 
   const run = useCallback(
     async <T,>(promise: Promise<T>, options?: { success?: string }): Promise<T | null> => {
@@ -347,13 +377,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     [pushToast],
   );
-
-  const navigate = useCallback((name: ViewName, id?: string) => {
-    setView({ name, id });
-    setSearch('');
-    setHighlightId(null);
-    window.scrollTo({ top: 0 });
-  }, []);
 
   const clearHighlight = useCallback(() => setHighlightId(null), []);
 

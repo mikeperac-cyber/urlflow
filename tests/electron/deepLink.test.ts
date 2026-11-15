@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseCaptureProtocol } from '../../electron/deepLink';
+import { parseBatchChunk, parseCaptureProtocol } from '../../electron/deepLink';
 
 describe('parseCaptureProtocol', () => {
   it('parsesUrlAndOptionalTitle', () => {
@@ -24,6 +24,21 @@ describe('parseCaptureProtocol', () => {
   it('protocolCaptureUsesDialogMode', () => {
     expect(parseCaptureProtocol('urlflow://add?url=https%3A%2F%2Fexample.com&mode=clipboard&requestId=external'))
       .toEqual({ url: 'https://example.com/', mode: 'dialog' });
+  });
+
+  it('parsesBatchChunksAndRejectsBadShapes', () => {
+    expect(parseBatchChunk('urlflow://add?batchId=abcdefgh&i=0&n=1&d=eyJ9'))
+      .toEqual({ batchId: 'abcdefgh', index: 0, total: 1, data: 'eyJ9' });
+    for (const raw of [
+      'https://add?batchId=abcdefgh&i=0&n=1&d=eyJ9',
+      'urlflow://remove?batchId=abcdefgh&i=0&n=1&d=eyJ9',
+      'urlflow://add?batchId=short&i=0&n=1&d=eyJ9',
+      'urlflow://add?batchId=abcdefgh&i=2&n=2&d=eyJ9',
+      'urlflow://add?batchId=abcdefgh&i=0&n=1&d=a+b',
+      'urlflow://add?batchId=abcdefgh&i=0&n=61&d=eyJ9',
+      'urlflow://add?batchId=abcdefgh&i=0&n=1',
+      'urlflow://add?batchId=abcdefgh&i=0&n=1&d=%ZZ',
+    ]) expect(parseBatchChunk(raw), raw).toBeNull();
   });
 
   it('rejectsWrongRouteAndScheme', () => {

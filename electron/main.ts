@@ -15,9 +15,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Store } from './store';
 import { CaptureQueue } from './captureQueue';
+import { CaptureBatchAssembler, claimBatch } from './captureBatches';
 import { openLinks } from './openLinks';
 import { createUpdateController, loadElectronUpdater } from './updates';
-import { parseCaptureProtocol } from './deepLink';
+import { parseBatchChunk, parseCaptureProtocol } from './deepLink';
 import { fetchPageMetadata, readFaviconDataUrl } from './pageMetadata';
 import { createBackup, ensureDailyBackup, listBackups as readBackupList, readBackup } from './backups';
 import * as core from '../shared/core';
@@ -52,6 +53,8 @@ let prefsPath = '';
 let userDataPath = '';
 let backupTimer: NodeJS.Timeout | null = null;
 const captureQueue = new CaptureQueue();
+const captureBatches = new CaptureBatchAssembler();
+const appliedBatches = new Map<string, number>();
 declare const __URL_FLOW_PACKAGE_MODE__: string;
 const updates = createUpdateController({
   mode: typeof __URL_FLOW_PACKAGE_MODE__ === 'string' ? __URL_FLOW_PACKAGE_MODE__ : 'development',
@@ -83,8 +86,21 @@ if (hasSingleInstanceLock) {
 
 function captureProtocol(raw: string): void {
   const payload = parseCaptureProtocol(raw);
-  if (!payload) return;
-  captureQueue.enqueue(payload);
+  if (payload) {
+    captureQueue.enqueue(payload);
+    if (app.isReady()) showWindow();
+    return;
+  }
+
+  const chunk = parseBatchChunk(raw);
+  if (!chunk) return;
+  const assembled = captureBatches.add(chunk);
+  if (!assembled) return;
+  captureQueue.enqueue({
+    url: null,
+    mode: 'batch',
+    batch: { ...assembled.batch, batchId: assembled.batchId },
+  });
   if (app.isReady()) showWindow();
 }
 
@@ -383,21 +399,30 @@ function registerIpc(): void {
 
   ipcMain.handle('capture:batch', (_event, request: BatchCaptureRequest) => {
     const before = store.get();
-    const result = core.createBatch(before, request);
-    if (result.ids.length === 0 && !result.planId) {
-      return { state: before, added: 0, skipped: result.skipped, planId: null, duplicated: false };
+    const batchId = request && typeof request === 'object' ? request.batchId : undefined;
+    if (!claimBatch(appliedBatches, batchId, Date.now())) {
+      return { state: before, added: 0, skipped: 0, planId: null, duplicated: true };
     }
-    const saved = commit(
-      result.state,
-      result.planId ? `Created a plan from ${result.ids.length} tabs` : `Captured ${result.ids.length} tabs`,
-    );
-    return {
-      state: saved,
-      added: result.ids.length,
-      skipped: result.skipped,
-      planId: result.planId,
-      duplicated: false,
-    };
+    try {
+      const result = core.createBatch(before, request);
+      if (result.ids.length === 0 && !result.planId) {
+        return { state: before, added: 0, skipped: result.skipped, planId: null, duplicated: false };
+      }
+      const saved = commit(
+        result.state,
+        result.planId ? `Created a plan from ${result.ids.length} tabs` : `Captured ${result.ids.length} tabs`,
+      );
+      return {
+        state: saved,
+        added: result.ids.length,
+        skipped: result.skipped,
+        planId: result.planId,
+        duplicated: false,
+      };
+    } catch (error) {
+      if (batchId) appliedBatches.delete(batchId);
+      throw error;
+    }
   });
 
   ipcMain.handle('item:update', (_event, { id, patch }: { id: string; patch: ItemPatch }) => {
