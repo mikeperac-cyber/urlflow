@@ -123,6 +123,21 @@ export const browserApi: FlowApi = {
     return prefs;
   },
   create: async (draft) => mutate((current) => core.createItem(current, draft).state),
+  createBatch: async (request) => {
+    const before = state;
+    const result = core.createBatch(before, request);
+    if (result.ids.length === 0 && !result.planId) {
+      return { state: before, added: 0, skipped: result.skipped, planId: null, duplicated: false };
+    }
+    const saved = mutate(() => result.state);
+    return {
+      state: saved,
+      added: result.ids.length,
+      skipped: result.skipped,
+      planId: result.planId,
+      duplicated: false,
+    };
+  },
   update: async (id, patch) => mutate((current) => core.updateItem(current, id, patch)),
   remove: async (id) => mutate((current) => core.removeItem(current, id)),
   archive: async (id) => mutate((current) => core.setArchived(current, id, true)),

@@ -219,11 +219,38 @@ export interface BackupInfo {
   bytes: number;
 }
 
+export type CaptureMode = 'clipboard' | 'dialog' | 'batch';
+
+export interface BatchCaptureEntry {
+  url: string;
+  title?: string;
+}
+
+/** A batch is either a set of links or a new plan containing those links. */
+export type BatchCaptureRequest = (
+  | { kind: 'links' }
+  | { kind: 'plan'; title: string; color?: string }
+) & {
+  entries: BatchCaptureEntry[];
+  tags?: string[];
+  batchId?: string;
+};
+
+export interface BatchCaptureResult {
+  state: AppState;
+  added: number;
+  skipped: number;
+  planId: string | null;
+  duplicated: boolean;
+}
+
 export interface CapturePayload {
   url: string | null;
   title?: string;
-  mode?: 'clipboard' | 'dialog';
+  mode?: CaptureMode;
   requestId?: string;
+  selection?: string;
+  batch?: BatchCaptureRequest;
 }
 
 export interface FlowApi {
@@ -231,6 +258,7 @@ export interface FlowApi {
   getPreferences: () => Promise<Preferences>;
   setPreference: <K extends keyof Preferences>(key: K, value: Preferences[K]) => Promise<Preferences>;
   create: (draft: ItemDraft) => Promise<AppState>;
+  createBatch: (request: BatchCaptureRequest) => Promise<BatchCaptureResult>;
   update: (id: string, patch: ItemPatch) => Promise<AppState>;
   remove: (id: string) => Promise<AppState>;
   archive: (id: string) => Promise<AppState>;

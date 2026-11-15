@@ -7,6 +7,7 @@ const api: FlowApi = {
   setPreference: <K extends keyof Preferences>(key: K, value: Preferences[K]) =>
     ipcRenderer.invoke('prefs:set', { key, value }),
   create: (draft) => ipcRenderer.invoke('item:create', draft),
+  createBatch: (request) => ipcRenderer.invoke('capture:batch', request),
   update: (id, patch) => ipcRenderer.invoke('item:update', { id, patch }),
   remove: (id) => ipcRenderer.invoke('item:remove', id),
   archive: (id) => ipcRenderer.invoke('item:archive', id),

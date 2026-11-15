@@ -1,8 +1,10 @@
+import { parseBatchRequest } from './batch';
 import {
   PLAN_COLORS,
   emptyState,
   type AnyItem,
   type AppState,
+  type BatchCaptureRequest,
   type BookmarkEntry,
   type BookmarkImportResult,
   type ItemDraft,
@@ -652,6 +654,73 @@ export function importBookmarks(
 
   if (added.length === 0) return { state, added: 0, skipped };
   return { state: { ...state, items: [...added, ...state.items] }, added: added.length, skipped };
+}
+
+export interface BatchCreateResult {
+  state: AppState;
+  ids: string[];
+  skipped: number;
+  planId: string | null;
+}
+
+/**
+ * Creates every valid link from one browser batch, optionally inside a new plan.
+ * Repeated createItem calls prepend, so the links are reordered to tab order here.
+ */
+export function createBatch(state: AppState, request: BatchCaptureRequest): BatchCreateResult {
+  const parsed = parseBatchRequest(request);
+  if (!parsed) throw new Error('That browser batch could not be read.');
+
+  let next = state;
+  let planId: string | null = null;
+  const createdLinks: LinkItem[] = [];
+  let skipped = 0;
+
+  if (parsed.kind === 'plan') {
+    const created = createItem(next, {
+      kind: 'plan',
+      title: parsed.title,
+      color: parsed.color,
+      summary: '',
+      steps: [],
+    });
+    next = created.state;
+    planId = created.id;
+  }
+
+  for (const entry of parsed.entries) {
+    const normalized = normalizeUrl(entry.url);
+    if (!normalized.url || !isSafeExternalUrl(normalized.url)) {
+      skipped += 1;
+      continue;
+    }
+    const created = createItem(next, {
+      kind: 'link',
+      title: entry.title ?? '',
+      url: normalized.url,
+      tags: parsed.tags,
+      planId,
+    });
+    next = created.state;
+    const item = next.items.find((candidate) => candidate.id === created.id);
+    if (item && item.kind === 'link') createdLinks.push(item);
+  }
+
+  const newIds = new Set(createdLinks.map((link) => link.id));
+  const planItem = planId ? next.items.find((item) => item.id === planId) ?? null : null;
+  return {
+    state: {
+      ...next,
+      items: [
+        ...(planItem ? [planItem] : []),
+        ...createdLinks,
+        ...next.items.filter((item) => !newIds.has(item.id) && item.id !== planId),
+      ],
+    },
+    ids: createdLinks.map((link) => link.id),
+    skipped,
+    planId,
+  };
 }
 
 export function planProgress(plan: PlanItem): { done: number; total: number; percent: number } {

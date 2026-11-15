@@ -27,6 +27,7 @@ import { DEFAULT_PREFERENCES, isInQuietHours, normalizePreferences } from '../sh
 import { normalizeTagRules } from '../shared/tagRules';
 import type {
   AppState,
+  BatchCaptureRequest,
   BookmarkEntry,
   ItemDraft,
   ItemPatch,
@@ -378,6 +379,25 @@ function registerIpc(): void {
   ipcMain.handle('item:create', (_event, draft: ItemDraft) => {
     const result = core.createItem(store.get(), draft);
     return commit(result.state, `Created a ${draft.kind}`);
+  });
+
+  ipcMain.handle('capture:batch', (_event, request: BatchCaptureRequest) => {
+    const before = store.get();
+    const result = core.createBatch(before, request);
+    if (result.ids.length === 0 && !result.planId) {
+      return { state: before, added: 0, skipped: result.skipped, planId: null, duplicated: false };
+    }
+    const saved = commit(
+      result.state,
+      result.planId ? `Created a plan from ${result.ids.length} tabs` : `Captured ${result.ids.length} tabs`,
+    );
+    return {
+      state: saved,
+      added: result.ids.length,
+      skipped: result.skipped,
+      planId: result.planId,
+      duplicated: false,
+    };
   });
 
   ipcMain.handle('item:update', (_event, { id, patch }: { id: string; patch: ItemPatch }) => {
