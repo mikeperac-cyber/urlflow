@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Archive,
   ArrowDown,
@@ -10,6 +10,8 @@ import {
   LayoutTemplate,
   Link2,
   ListPlus,
+  Maximize2,
+  Minimize2,
   Pencil,
   Pin,
   Plus,
@@ -41,6 +43,12 @@ export function PlanDetail() {
   const plan = plans.find((entry) => entry.id === view.id);
   const [stepText, setStepText] = useState('');
   const [taskText, setTaskText] = useState('');
+  const [focus, setFocus] = useState(false);
+  const [scratchpad, setScratchpad] = useState(plan?.scratchpad ?? '');
+
+  useEffect(() => {
+    setScratchpad(plan?.scratchpad ?? '');
+  }, [plan?.id, plan?.scratchpad]);
   const [editingStep, setEditingStep] = useState<{
     id: string;
     text: string;
@@ -186,6 +194,13 @@ export function PlanDetail() {
           </div>
         </div>
         <div className="plan-hero__actions">
+          <Button
+            variant="subtle"
+            icon={focus ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            onClick={() => setFocus((current) => !current)}
+          >
+            {focus ? 'Exit focus mode' : 'Focus mode'}
+          </Button>
           <Button variant="primary" icon={<Pencil size={14} />} onClick={() => openEditor({ kind: 'plan', item: plan })}>
             Edit plan
           </Button>
@@ -219,7 +234,7 @@ export function PlanDetail() {
         </div>
       </section>
 
-      <div className="detail-grid">
+      <div className={`detail-grid${focus ? ' detail-grid--focus' : ''}`}>
         <div className="stack">
           <section className="panel">
             <header className="panel__head">
@@ -384,29 +399,31 @@ export function PlanDetail() {
             </div>
           </section>
 
-          <section className="panel">
-            <header className="panel__head">
-              <div>
-                <h3>Attached notes</h3>
-                <p>Longer thoughts filed under this plan.</p>
+          {!focus ? (
+            <section className="panel">
+              <header className="panel__head">
+                <div>
+                  <h3>Attached notes</h3>
+                  <p>Longer thoughts filed under this plan.</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  icon={<Plus size={13} />}
+                  onClick={() => openEditor({ kind: 'note', preset: { planId: plan.id } })}
+                >
+                  New note
+                </Button>
+              </header>
+              <div className="panel__body panel__body--grid">
+                {planNotes.length === 0 ? (
+                  <p className="muted">No notes attached yet.</p>
+                ) : (
+                  planNotes.map((note) => <NoteCard key={note.id} note={note} compact />)
+                )}
               </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                icon={<Plus size={13} />}
-                onClick={() => openEditor({ kind: 'note', preset: { planId: plan.id } })}
-              >
-                New note
-              </Button>
-            </header>
-            <div className="panel__body panel__body--grid">
-              {planNotes.length === 0 ? (
-                <p className="muted">No notes attached yet.</p>
-              ) : (
-                planNotes.map((note) => <NoteCard key={note.id} note={note} compact />)
-              )}
-            </div>
-          </section>
+            </section>
+          ) : null}
         </div>
 
         <div className="stack">
@@ -443,15 +460,16 @@ export function PlanDetail() {
             </div>
           </section>
 
-          <section className="panel">
-            <header className="panel__head">
-              <div>
-                <h3>Reminder</h3>
-                <p>Nudged on this computer.</p>
-              </div>
-            </header>
-            <div className="panel__body">
-              {reminder ? (
+          {!focus ? (
+            <section className="panel">
+              <header className="panel__head">
+                <div>
+                  <h3>Reminder</h3>
+                  <p>Nudged on this computer.</p>
+                </div>
+              </header>
+              <div className="panel__body">
+                {reminder ? (
                 <div className="reminder-chip">
                   <Bell size={14} />
                   <div>
@@ -473,13 +491,14 @@ export function PlanDetail() {
                     Dismiss
                   </Button>
                 </div>
-              ) : (
-                <Button variant="subtle" icon={<Bell size={14} />} onClick={() => openReminder(plan)}>
-                  Set a reminder
-                </Button>
-              )}
-            </div>
-          </section>
+                ) : (
+                  <Button variant="subtle" icon={<Bell size={14} />} onClick={() => openReminder(plan)}>
+                    Set a reminder
+                  </Button>
+                )}
+              </div>
+            </section>
+          ) : null}
 
           <section className="panel">
             <header className="panel__head">
@@ -506,6 +525,32 @@ export function PlanDetail() {
               )}
             </div>
           </section>
+
+          {focus ? (
+            <section className="panel">
+              <header className="panel__head">
+                <div>
+                  <h3>Scratchpad</h3>
+                  <p>Loose notes for this session. Saved when you leave the field.</p>
+                </div>
+              </header>
+              <div className="panel__body">
+                <textarea
+                  className="input textarea"
+                  rows={8}
+                  maxLength={20_000}
+                  aria-label="Plan scratchpad"
+                  value={scratchpad}
+                  onChange={(event) => setScratchpad(event.target.value)}
+                  onBlur={() => {
+                    if (scratchpad !== plan.scratchpad) {
+                      void run(api.update(plan.id, { scratchpad }), { success: 'Scratchpad saved' });
+                    }
+                  }}
+                />
+              </div>
+            </section>
+          ) : null}
         </div>
       </div>
     </div>

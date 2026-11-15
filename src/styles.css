@@ -253,6 +253,14 @@ kbd {
   align-items: start;
 }
 
+.detail-grid--focus {
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+}
+
+.detail-grid--focus .panel__body {
+  min-height: 0;
+}
+
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(316px, 1fr));
@@ -3671,7 +3679,8 @@ button.badge:hover {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .detail-grid {
+  .detail-grid,
+  .detail-grid--focus {
     grid-template-columns: minmax(0, 1fr);
   }
 
