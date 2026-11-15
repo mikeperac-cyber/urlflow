@@ -81,9 +81,18 @@ export interface LinkItem extends BaseItem {
   url: string;
   favorite: boolean;
   lastOpenedAt: string | null;
+  /** When a readable offline snapshot was captured; the text lives outside url-flow-data.json. */
+  snapshotAt: string | null;
   description?: string | null;
   siteName?: string | null;
   faviconKey?: string | null;
+}
+
+export interface SnapshotContent {
+  markdown: string;
+  savedAt: string;
+  title: string;
+  sourceUrl: string;
 }
 
 export interface LinkMetadata {

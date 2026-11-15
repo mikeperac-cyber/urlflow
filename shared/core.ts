@@ -120,6 +120,7 @@ export function createItem(state: AppState, draft: ItemDraft): { state: AppState
         tags: cleanTags([...base.tags, ...tagsForUrl(url, state.tagRules)]),
         favorite: Boolean(draft.favorite),
         lastOpenedAt: null,
+        snapshotAt: null,
       };
       item = link;
       break;
@@ -247,6 +248,18 @@ export function setArchived(state: AppState, id: string, archived: boolean): App
   };
 }
 
+/** Records or clears the offline snapshot timestamp; the file itself is managed in Electron. */
+export function setLinkSnapshot(state: AppState, id: string, savedAt: string | null): AppState {
+  return {
+    ...state,
+    items: state.items.map((item) =>
+      item.id === id && item.kind === 'link'
+        ? { ...item, snapshotAt: savedAt, updatedAt: nowIso() }
+        : item,
+    ),
+  };
+}
+
 export function bulkTriageLinks(
   state: AppState,
   ids: string[],
@@ -343,6 +356,8 @@ export function mergeItems(
     merged.url = primary.url || other.url;
     merged.favorite = primary.favorite || other.favorite;
     merged.lastOpenedAt = primary.lastOpenedAt ?? other.lastOpenedAt;
+    // Snapshot files are keyed by link id, so only the surviving id's file is valid.
+    merged.snapshotAt = primary.snapshotAt;
     Object.assign(merged, cleanLinkEnrichment({
       description: primary.description || other.description,
       siteName: primary.siteName || other.siteName,
@@ -649,6 +664,7 @@ export function importBookmarks(
       favorite: false,
       readingState: 'unread',
       lastOpenedAt: null,
+      snapshotAt: null,
     });
   }
 
@@ -777,6 +793,7 @@ export function normalizeState(raw: unknown): AppState {
         url: normalized.url,
         favorite: Boolean(item.favorite),
         lastOpenedAt: typeof item.lastOpenedAt === 'string' ? item.lastOpenedAt : null,
+        snapshotAt: typeof item.snapshotAt === 'string' ? item.snapshotAt : null,
       });
     } else if (item.kind === 'plan') {
       items.push({
