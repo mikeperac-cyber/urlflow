@@ -7,13 +7,17 @@ import {
   HardDrive,
   History,
   Info,
+  Plus,
   RotateCcw,
+  Tags,
+  Trash2,
   Upload,
 } from 'lucide-react';
-import type { BackupInfo, BookmarkFile, UpdateStatus } from '../../shared/types';
+import type { BackupInfo, BookmarkFile, TagRule, UpdateStatus } from '../../shared/types';
+import { normalizeTagRules, tagsForUrl } from '../../shared/tagRules';
 import { useApp } from '../app-context';
 import { BookmarkDialog } from '../components/BookmarkDialog';
-import { Button, Confirm, Modal } from '../components/ui';
+import { Button, Confirm, IconButton, Modal } from '../components/ui';
 import { isDesktop } from '../lib/api';
 
 export function SettingsView() {
@@ -40,8 +44,49 @@ export function SettingsView() {
   const [savingShortcut, setSavingShortcut] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ state: 'idle', enabled: false });
   const [updateActionPending, setUpdateActionPending] = useState(false);
+  const storedRules = state.tagRules;
+  const [ruleDraft, setRuleDraft] = useState<TagRule[]>(() => storedRules ?? []);
+  const [testUrl, setTestUrl] = useState('');
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [savingRules, setSavingRules] = useState(false);
 
   useEffect(() => api.onUpdateStatus(setUpdateStatus), [api]);
+
+  useEffect(() => {
+    setRuleDraft(storedRules ?? []);
+  }, [storedRules]);
+
+  function addRule() {
+    setRuleDraft((current) => [
+      ...current,
+      { id: crypto.randomUUID(), pattern: '', matchType: 'domain', tags: [], enabled: true },
+    ]);
+  }
+
+  function updateRule(id: string, patch: Partial<TagRule>) {
+    setRuleDraft((current) => current.map((rule) => (rule.id === id ? { ...rule, ...patch } : rule)));
+  }
+
+  async function saveRules() {
+    if (savingRules) return;
+    setSavingRules(true);
+    try {
+      const saved = await run(api.saveTagRules(normalizeTagRules(ruleDraft)));
+      if (saved) pushToast('Tag rules saved', 'success');
+    } finally {
+      setSavingRules(false);
+    }
+  }
+
+  function testRules() {
+    const url = testUrl.trim();
+    if (!url) {
+      setTestResult('Enter a URL to test.');
+      return;
+    }
+    const tags = tagsForUrl(url, ruleDraft);
+    setTestResult(tags.length > 0 ? tags.join(', ') : 'No tags match this URL.');
+  }
 
   async function updateAction(install: boolean) {
     if (updateActionPending) return;
@@ -323,6 +368,124 @@ export function SettingsView() {
           {!isDesktop ? (
             <p className="muted">
               Global capture shortcuts, tray behaviour and Windows notifications are available in the installed desktop app.
+            </p>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="panel panel--rules" aria-label="Auto-tag rules">
+        <header className="panel__head">
+          <div>
+            <h3>
+              <Tags size={16} /> Auto-tag rules
+            </h3>
+            <p>Tag new links automatically when their address matches a domain or regular expression.</p>
+          </div>
+        </header>
+        <div className="panel__body">
+          {ruleDraft.length === 0 ? (
+            <p className="muted">
+              No rules yet. Add a domain rule such as <strong>github.com</strong> or a regex rule to tag links as
+              they are captured or imported.
+            </p>
+          ) : (
+            <ul className="rule-list">
+              {ruleDraft.map((rule, index) => (
+                <li key={rule.id} className="rule-row">
+                  <input
+                    className="input"
+                    aria-label={`Pattern for rule ${index + 1}`}
+                    value={rule.pattern}
+                    placeholder="github.com or /docs/"
+                    maxLength={300}
+                    onChange={(event) => updateRule(rule.id, { pattern: event.target.value })}
+                  />
+                  <select
+                    className="input input--select"
+                    aria-label={`Match type for rule ${index + 1}`}
+                    value={rule.matchType}
+                    onChange={(event) =>
+                      updateRule(rule.id, { matchType: event.target.value === 'regex' ? 'regex' : 'domain' })
+                    }
+                  >
+                    <option value="domain">Domain</option>
+                    <option value="regex">Regex</option>
+                  </select>
+                  <input
+                    className="input"
+                    aria-label={`Tags for rule ${index + 1}`}
+                    value={rule.tags.join(', ')}
+                    placeholder="code, reading"
+                    onChange={(event) =>
+                      updateRule(rule.id, {
+                        tags: event.target.value
+                          .split(',')
+                          .map((tag) => tag.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                  />
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      aria-label={`Enable rule ${index + 1}`}
+                      checked={rule.enabled}
+                      onChange={(event) => updateRule(rule.id, { enabled: event.target.checked })}
+                    />
+                    <span className="switch__track">
+                      <span className="switch__thumb" />
+                    </span>
+                  </label>
+                  <IconButton
+                    label={`Delete rule ${index + 1}`}
+                    onClick={() => setRuleDraft((current) => current.filter((entry) => entry.id !== rule.id))}
+                  >
+                    <Trash2 size={14} />
+                  </IconButton>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="settings-row__actions rule-actions">
+            <Button variant="subtle" size="sm" icon={<Plus size={13} />} onClick={addRule}>
+              Add rule
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={savingRules || JSON.stringify(ruleDraft) === JSON.stringify(storedRules ?? [])}
+              onClick={() => void saveRules()}
+            >
+              {savingRules ? 'Saving…' : 'Save rules'}
+            </Button>
+          </div>
+          <div className="settings-row">
+            <div>
+              <strong>Test a URL</strong>
+              <span>See which tags the current draft rules would add.</span>
+            </div>
+            <form
+              className="settings-row__actions"
+              onSubmit={(event) => {
+                event.preventDefault();
+                testRules();
+              }}
+            >
+              <input
+                className="input"
+                aria-label="Test a URL"
+                value={testUrl}
+                placeholder="https://example.com"
+                onChange={(event) => setTestUrl(event.target.value)}
+              />
+              <Button type="submit" variant="subtle" size="sm">
+                Test
+              </Button>
+            </form>
+          </div>
+          {testResult !== null ? (
+            <p className={`muted rule-test ${testResult.startsWith('No tags') || testResult.startsWith('Enter') ? '' : 'rule-test--match'}`} role="status">
+              {testResult}
             </p>
           ) : null}
         </div>

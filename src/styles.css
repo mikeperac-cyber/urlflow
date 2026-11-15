@@ -4472,3 +4472,47 @@ button.badge:hover {
     padding: 8vh 14px 16px;
   }
 }
+
+/* Auto-tag rules */
+
+.rule-list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.rule-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) 110px minmax(0, 1.4fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.rule-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.rule-test {
+  margin: 0;
+  padding: 8px 2px 0;
+}
+
+.rule-test--match {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+@media (max-width: 1100px) {
+  .rule-row {
+    grid-template-columns: minmax(0, 1fr) 96px;
+  }
+
+  .rule-row .switch {
+    justify-self: start;
+  }
+}
