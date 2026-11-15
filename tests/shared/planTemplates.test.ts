@@ -172,6 +172,54 @@ describe('plan templates', () => {
     expect(saved.steps.map((step) => step.dayOffset)).toEqual([0, 1]);
   });
 
+  it('keepsUndatedStepsInSequenceWithDatedOnes', () => {
+    const saved = templateFromPlan(
+      plan({
+        targetDate: '2026-12-10T12:00:00.000Z',
+        steps: [
+          { id: 's1', text: 'Outline', done: false },
+          { id: 's2', text: 'Draft', done: false, dueAt: '2026-12-01T12:00:00.000Z' },
+          { id: 's3', text: 'Review', done: false },
+          { id: 's4', text: 'Publish', done: false, dueAt: '2026-12-08T12:00:00.000Z' },
+          { id: 's5', text: 'Announce', done: false },
+        ],
+      }),
+      [],
+      [],
+    );
+    expect(saved.steps.map((step) => step.dayOffset)).toEqual([9, 9, 9, 2, 2]);
+
+    const result = instantiateTemplate(
+      saved,
+      { title: 'Run', startDate: '2026-12-01', endDate: '2026-12-15' },
+      emptyState(),
+    );
+    const created = result.state.items.find((item) => item.id === result.planId);
+    const dueTimes = created?.kind === 'plan'
+      ? created.steps.map((step) => new Date(step.dueAt!).getTime())
+      : [];
+    expect(dueTimes).toEqual([...dueTimes].sort((left, right) => left - right));
+  });
+
+  it('keepsStoredStepOffsetsInSequenceWhenInstantiated', () => {
+    const result = instantiateTemplate(
+      template({
+        steps: [
+          { text: 'First', notes: '', dayOffset: 1 },
+          { text: 'Second', notes: '', dayOffset: 5 },
+          { text: 'Third', notes: '', dayOffset: 2 },
+        ],
+      }),
+      { title: 'Stored', startDate: '2026-11-15', endDate: '2026-11-20' },
+      emptyState(),
+    );
+    const created = result.state.items.find((item) => item.id === result.planId);
+    const dueTimes = created?.kind === 'plan'
+      ? created.steps.map((step) => new Date(step.dueAt!).getTime())
+      : [];
+    expect(dueTimes).toEqual([...dueTimes].sort((left, right) => left - right));
+  });
+
   it('instantiatesDueDatesFromTheChosenEndDate', () => {
     const saved = template({
       steps: [{ text: 'Prep', notes: '', dayOffset: 2 }],

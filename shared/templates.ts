@@ -34,6 +34,34 @@ function offsetFor(dueAt: string | null | undefined, targetStart: number | null,
   return Math.max(0, Math.min(MAX_OFFSET, Math.round((targetStart - day) / DAY_MS)));
 }
 
+/**
+ * Undated steps borrow a dated neighbour's offset instead of their array index,
+ * which would otherwise let a later step be scheduled before an earlier one.
+ */
+function stepOffsets(steps: Step[], targetStart: number | null): number[] {
+  const computed = steps.map((step, index) => ({
+    offset: offsetFor(step.dueAt, targetStart, index),
+    dated: targetStart !== null && startOfDay(step.dueAt) !== null,
+  }));
+  if (targetStart === null || !computed.some((entry) => entry.dated)) {
+    return computed.map((entry) => entry.offset);
+  }
+
+  const offsets = computed.map((entry) => entry.offset);
+  const firstDated = computed.findIndex((entry) => entry.dated);
+  for (let index = 0; index < firstDated; index += 1) {
+    offsets[index] = offsets[firstDated];
+  }
+  for (let index = firstDated + 1; index < offsets.length; index += 1) {
+    if (!computed[index].dated) offsets[index] = offsets[index - 1];
+  }
+  // Steps are a sequence; a later step must never be scheduled before an earlier one.
+  for (let index = 1; index < offsets.length; index += 1) {
+    offsets[index] = Math.min(offsets[index], offsets[index - 1]);
+  }
+  return offsets;
+}
+
 function pushPriority(value: unknown): Priority {
   return value === 'low' || value === 'high' ? value : 'normal';
 }
@@ -47,10 +75,12 @@ export function templateFromPlan(
 ): PlanTemplate {
   const targetStart = startOfDay(plan.targetDate);
   const timestamp = now.toISOString();
-  const steps = plan.steps.slice(0, MAX_STEPS).map((step: Step, index) => ({
+  const limitedSteps = plan.steps.slice(0, MAX_STEPS);
+  const offsets = stepOffsets(limitedSteps, targetStart);
+  const steps = limitedSteps.map((step: Step, index) => ({
     text: String(step.text ?? '').slice(0, 300),
     notes: String(step.notes ?? '').slice(0, 2_000),
-    dayOffset: offsetFor(step.dueAt, targetStart, index),
+    dayOffset: offsets[index],
   }));
   const templateTasks = tasks
     .filter((task) => task.planId === plan.id && !task.archivedAt)
@@ -108,8 +138,13 @@ export function instantiateTemplate(
   const timestamp = now.toISOString();
   const planId = newId();
 
+  let previousOffset = MAX_OFFSET;
   const steps: Step[] = template.steps.slice(0, MAX_STEPS).map((step) => {
-    const offset = Math.max(0, Math.min(MAX_OFFSET, Math.round(step.dayOffset)));
+    const offset = Math.min(
+      previousOffset,
+      Math.max(0, Math.min(MAX_OFFSET, Math.round(step.dayOffset))),
+    );
+    previousOffset = offset;
     return {
       id: newId(),
       text: String(step.text ?? '').slice(0, 300),
