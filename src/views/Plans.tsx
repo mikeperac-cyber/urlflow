@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Plus, Search, Target } from 'lucide-react';
+import { LayoutTemplate, Plus, Search, Target } from 'lucide-react';
 import { useApp } from '../app-context';
 import { PlanCard } from '../components/items';
 import { Button, EmptyState, Segmented } from '../components/ui';
@@ -7,7 +7,7 @@ import { Button, EmptyState, Segmented } from '../components/ui';
 type StatusFilter = 'active' | 'paused' | 'done' | 'all';
 
 export function PlansView() {
-  const { plans, search, openEditor } = useApp();
+  const { plans, search, openEditor, state, openTemplateDialog } = useApp();
   const [status, setStatus] = useState<StatusFilter>('active');
 
   const counts = useMemo(
@@ -51,6 +51,13 @@ export function PlansView() {
           value={status}
           onChange={(next) => setStatus(next)}
         />
+        {state.planTemplates.length > 0 ? (
+          <div className="toolbar__right">
+            <Button variant="subtle" icon={<LayoutTemplate size={14} />} onClick={openTemplateDialog}>
+              New from template
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       {filtered.length === 0 ? (

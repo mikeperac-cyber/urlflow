@@ -37,6 +37,10 @@ const api: FlowApi = {
   getSnapshot: (id) => ipcRenderer.invoke('snapshot:get', id),
   deleteSnapshot: (id) => ipcRenderer.invoke('snapshot:delete', id),
   checkHealth: (ids) => ipcRenderer.invoke('links:checkHealth', ids),
+  savePlanTemplate: (planId) => ipcRenderer.invoke('planTemplate:save', planId),
+  deletePlanTemplate: (templateId) => ipcRenderer.invoke('planTemplate:delete', templateId),
+  createPlanFromTemplate: (templateId, options) =>
+    ipcRenderer.invoke('planTemplate:create', { templateId, options }),
   exportData: () => ipcRenderer.invoke('data:export'),
   importData: () => ipcRenderer.invoke('data:import'),
   revealDataFile: () => ipcRenderer.invoke('data:reveal'),

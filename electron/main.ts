@@ -25,6 +25,7 @@ import { deleteSnapshot, pruneOrphanSnapshots, readSnapshot, writeSnapshot } fro
 import { checkLinks } from './linkHealth';
 import { createBackup, ensureDailyBackup, listBackups as readBackupList, readBackup } from './backups';
 import * as core from '../shared/core';
+import { instantiateTemplate, templateFromPlan, upsertPlanTemplate } from '../shared/templates';
 import { parseBookmarkFile } from '../shared/bookmarks';
 import { extractUrl, isSafeExternalUrl, normalizeUrl } from '../shared/url';
 import { DEFAULT_PREFERENCES, isInQuietHours, normalizePreferences } from '../shared/preferences';
@@ -38,8 +39,11 @@ import type {
   LinkBulkAction,
   LinkItem,
   MergeFieldChoices,
+  PlanItem,
+  PlanTemplateOptions,
   Preferences,
   RepeatRule,
+  TaskItem,
 } from '../shared/types';
 
 const APP_ID = 'com.urlflow.desktop';
@@ -595,6 +599,33 @@ function registerIpc(): void {
     void deleteSnapshot(userDataPath, String(id ?? ''));
     return saved;
   });
+
+  ipcMain.handle('planTemplate:save', (_event, planId: string) => {
+    const state = store.get();
+    const plan = state.items.find((item): item is PlanItem => item.kind === 'plan' && item.id === planId);
+    if (!plan) throw new Error('That plan no longer exists.');
+    const links = state.items.filter((item): item is LinkItem => item.kind === 'link');
+    const tasks = state.items.filter((item): item is TaskItem => item.kind === 'task');
+    return commit(upsertPlanTemplate(state, templateFromPlan(plan, links, tasks)), 'Saved a plan template');
+  });
+  ipcMain.handle('planTemplate:delete', (_event, templateId: string) => {
+    const current = store.get();
+    return commit(
+      { ...current, planTemplates: current.planTemplates.filter((template) => template.id !== templateId) },
+      'Deleted a plan template',
+    );
+  });
+  ipcMain.handle(
+    'planTemplate:create',
+    (_event, { templateId, options }: { templateId: string; options: PlanTemplateOptions }) => {
+      const current = store.get();
+      const template = current.planTemplates.find((entry) => entry.id === templateId);
+      if (!template) throw new Error('That template no longer exists.');
+      const result = instantiateTemplate(template, options, current);
+      const saved = commit(result.state, 'Created a plan from a template');
+      return { state: saved, planId: result.planId };
+    },
+  );
 
   ipcMain.handle('links:checkHealth', (_event, ids: string[]) => {
     const selected = new Set(Array.isArray(ids) ? ids.slice(0, 200) : []);

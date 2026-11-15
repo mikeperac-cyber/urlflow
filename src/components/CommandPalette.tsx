@@ -10,6 +10,7 @@ import {
   Globe,
   HardDrive,
   LayoutDashboard,
+  LayoutTemplate,
   Link2,
   NotebookPen,
   Plus,
@@ -96,6 +97,8 @@ export function CommandPalette() {
     pushToast,
     run,
     openHealthDialog,
+    state,
+    openTemplateDialog,
   } = useApp();
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -209,6 +212,20 @@ export function CommandPalette() {
       }
     }
 
+    if (state.planTemplates.length > 0 && (!needle || 'new plan from template'.includes(needle))) {
+      list.push({
+        id: 'new:template',
+        group: 'Create',
+        label: 'New plan from template',
+        hint: 'Template',
+        icon: <LayoutTemplate size={15} />,
+        perform: () => {
+          navigate('plans');
+          openTemplateDialog();
+        },
+      });
+    }
+
     if (needle) {
       const pool: AnyItem[] = [...links, ...plans, ...tasks, ...notes];
       const scored = pool
@@ -237,7 +254,7 @@ export function CommandPalette() {
 
     const groups: Group[] = ['Items', 'Go to', 'Create', 'Actions'];
     return list.sort((a, b) => groups.indexOf(a.group) - groups.indexOf(b.group));
-  }, [paletteOpen, query, links, plans, tasks, notes, undo, redo, api, pushToast, run, navigate, openEditor, openHealthDialog]);
+  }, [paletteOpen, query, links, plans, tasks, notes, undo, redo, api, pushToast, run, navigate, openEditor, openHealthDialog, state.planTemplates, openTemplateDialog]);
 
   useEffect(() => {
     setActive((current) => Math.min(Math.max(current, 0), Math.max(0, results.length - 1)));

@@ -2,13 +2,17 @@ import * as core from '../../shared/core';
 import { parseBookmarkFile } from '../../shared/bookmarks';
 import { isSafeExternalUrl } from '../../shared/url';
 import { normalizeTagRules } from '../../shared/tagRules';
+import { instantiateTemplate, templateFromPlan, upsertPlanTemplate } from '../../shared/templates';
 import { DEFAULT_PREFERENCES, isInQuietHours, normalizePreferences } from '../../shared/preferences';
 import {
   emptyState,
   type AppState,
   type FlowApi,
   type HistoryStatus,
+  type LinkItem,
+  type PlanItem,
   type Preferences,
+  type TaskItem,
 } from '../../shared/types';
 
 const DATA_KEY = 'url-flow:data:v1';
@@ -215,6 +219,28 @@ export const browserApi: FlowApi = {
     throw new Error('Offline snapshots are available in the desktop app.');
   },
   checkHealth: async () => [],
+  savePlanTemplate: async (planId) => {
+    const plan = state.items.find((item): item is PlanItem => item.kind === 'plan' && item.id === planId);
+    if (!plan) throw new Error('That plan no longer exists.');
+    const links = state.items.filter((item): item is LinkItem => item.kind === 'link');
+    const tasks = state.items.filter((item): item is TaskItem => item.kind === 'task');
+    return mutate(() => upsertPlanTemplate(state, templateFromPlan(plan, links, tasks)));
+  },
+  deletePlanTemplate: async (templateId) => mutate((current) => ({
+    ...current,
+    planTemplates: current.planTemplates.filter((template) => template.id !== templateId),
+  })),
+  createPlanFromTemplate: async (templateId, options) => {
+    const template = state.planTemplates.find((entry) => entry.id === templateId);
+    if (!template) throw new Error('That template no longer exists.');
+    let planId = '';
+    const saved = mutate((current) => {
+      const result = instantiateTemplate(template, options, current);
+      planId = result.planId;
+      return result.state;
+    });
+    return { state: saved, planId };
+  },
   exportData: async () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

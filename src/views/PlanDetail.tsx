@@ -7,9 +7,11 @@ import {
   Bell,
   CalendarClock,
   Check,
+  LayoutTemplate,
   Link2,
   ListPlus,
   Pencil,
+  Pin,
   Plus,
   Target,
   Trash2,
@@ -190,6 +192,20 @@ export function PlanDetail() {
           <Button variant="subtle" icon={<Bell size={14} />} onClick={() => openReminder(plan)}>
             {reminder ? 'Change reminder' : 'Remind me'}
           </Button>
+          <Button
+            variant="subtle"
+            icon={<LayoutTemplate size={14} />}
+            onClick={() => void run(api.savePlanTemplate(plan.id), { success: 'Plan saved as template' })}
+          >
+            Save as template
+          </Button>
+          <IconButton
+            label="Pin plan to tray menu"
+            aria-pressed={plan.pinned}
+            onClick={() => void run(api.update(plan.id, { pinned: !plan.pinned }))}
+          >
+            <Pin size={15} className={plan.pinned ? 'star-on' : ''} />
+          </IconButton>
           <IconButton
             label="Archive plan"
             onClick={() => {

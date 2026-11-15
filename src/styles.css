@@ -4683,6 +4683,50 @@ button.badge:hover {
   white-space: nowrap;
 }
 
+.template-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.template-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.template-row.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.template-row__pick {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: 8px;
+  text-align: left;
+  color: inherit;
+}
+
+.template-row__pick strong {
+  font-size: 13.5px;
+}
+
+.template-row__pick span {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
 .health-row__moved {
   font-size: 11.5px;
   color: var(--muted);

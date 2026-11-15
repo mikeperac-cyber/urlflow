@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Info, X, Zap } from 'lucide-react';
 import { AppProvider, useApp } from './app-context';
 import { CommandPalette } from './components/CommandPalette';
 import { ItemDialog } from './components/ItemDialog';
+import { TemplateDialog } from './components/TemplateDialog';
 import { LinkHealthDialog } from './components/LinkHealthDialog';
 import { MergeDialog } from './components/MergeDialog';
 import { ReminderDialog } from './components/ReminderDialog';
@@ -30,7 +31,16 @@ export default function App() {
 }
 
 function Shell() {
-  const { view, loading, toasts, dismissToast, highlightId, clearHighlight } = useApp();
+  const {
+    view,
+    loading,
+    toasts,
+    dismissToast,
+    highlightId,
+    clearHighlight,
+    templateDialogOpen,
+    closeTemplateDialog,
+  } = useApp();
 
   useEffect(() => {
     if (!highlightId) return;
@@ -59,6 +69,7 @@ function Shell() {
       <MergeDialog />
       <ReminderDialog />
       <LinkHealthDialog />
+      {templateDialogOpen ? <TemplateDialog onClose={closeTemplateDialog} /> : null}
 
       <div className="toasts" aria-live="polite">
         {toasts.map((toast) => (

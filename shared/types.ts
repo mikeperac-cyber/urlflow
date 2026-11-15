@@ -342,6 +342,12 @@ export interface FlowApi {
   getSnapshot: (id: string) => Promise<SnapshotContent | null>;
   deleteSnapshot: (id: string) => Promise<AppState>;
   checkHealth: (ids: string[]) => Promise<LinkHealthCheck[]>;
+  savePlanTemplate: (planId: string) => Promise<AppState>;
+  deletePlanTemplate: (templateId: string) => Promise<AppState>;
+  createPlanFromTemplate: (
+    templateId: string,
+    options: PlanTemplateOptions,
+  ) => Promise<{ state: AppState; planId: string }>;
   exportData: () => Promise<string | null>;
   importData: () => Promise<AppState | null>;
   revealDataFile: () => Promise<void>;

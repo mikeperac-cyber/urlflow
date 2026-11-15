@@ -82,6 +82,7 @@ function ItemDialogInner() {
   );
   const [done, setDone] = useState(item?.kind === 'task' ? item.done : Boolean(preset.done));
   const [pinned, setPinned] = useState(item?.kind === 'note' ? item.pinned : Boolean(preset.pinned));
+  const [planPinned, setPlanPinned] = useState(item?.kind === 'plan' ? item.pinned : Boolean(preset.pinned));
   const [reminderAt, setReminderAt] = useState(
     scheduled ? toInputValue(scheduled.remindAt) : toInputValue(preset.reminderAt ?? null),
   );
@@ -176,6 +177,7 @@ function ItemDialogInner() {
           patch.targetDate = fromDateInput(targetDate);
           patch.steps = steps;
           patch.color = color;
+          patch.pinned = planPinned;
         }
         if (item.kind === 'task') {
           patch.priority = priority;
@@ -227,6 +229,7 @@ function ItemDialogInner() {
         draft.targetDate = fromDateInput(targetDate);
         draft.steps = steps;
         draft.color = color;
+        draft.pinned = planPinned;
       }
       if (kind === 'task') {
         draft.title = cleanTitle || 'Untitled task';
@@ -476,6 +479,17 @@ function ItemDialogInner() {
           <label className="checkbox">
             <input type="checkbox" checked={pinned} onChange={(event) => setPinned(event.target.checked)} />
             <span>Pin this note to the top</span>
+          </label>
+        ) : null}
+
+        {kind === 'plan' ? (
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={planPinned}
+              onChange={(event) => setPlanPinned(event.target.checked)}
+            />
+            <span>Pin plan to tray menu</span>
           </label>
         ) : null}
 

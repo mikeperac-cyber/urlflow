@@ -104,6 +104,9 @@ interface AppContextValue {
   healthCheckedAt: string | null;
   healthRunning: boolean;
   runHealthCheck: (ids: string[]) => Promise<void>;
+  templateDialogOpen: boolean;
+  openTemplateDialog: () => void;
+  closeTemplateDialog: () => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -128,6 +131,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [healthResults, setHealthResults] = useState<Record<string, LinkHealthCheck>>({});
   const [healthCheckedAt, setHealthCheckedAt] = useState<string | null>(null);
   const [healthRunning, setHealthRunning] = useState(false);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [history, setHistory] = useState<HistoryStatus>({ canUndo: false, canRedo: false });
   const toastSeq = useRef(0);
   const timers = useRef<number[]>([]);
@@ -501,6 +505,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     healthCheckedAt,
     healthRunning,
     runHealthCheck,
+    templateDialogOpen,
+    openTemplateDialog: () => setTemplateDialogOpen(true),
+    closeTemplateDialog: () => setTemplateDialogOpen(false),
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

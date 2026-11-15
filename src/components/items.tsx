@@ -262,7 +262,7 @@ export function LinkCard({
 }
 
 export function PlanCard({ plan }: { plan: PlanItem }) {
-  const { navigate, links, tasks, notes, archiveItem } = useApp();
+  const { navigate, links, tasks, notes, archiveItem, api, run } = useApp();
   const progress = planProgress(plan);
   const taskCount = tasks.filter((task) => task.planId === plan.id && !task.done).length;
   const linkCount = links.filter((link) => link.planId === plan.id).length;
@@ -284,6 +284,16 @@ export function PlanCard({ plan }: { plan: PlanItem }) {
           </span>
         ) : null}
         <span className="plan-card__spacer" />
+        <IconButton
+          label="Pin plan to tray menu"
+          aria-pressed={plan.pinned}
+          onClick={(event) => {
+            event.stopPropagation();
+            void run(api.update(plan.id, { pinned: !plan.pinned }));
+          }}
+        >
+          <Pin size={14} className={plan.pinned ? 'star-on' : ''} />
+        </IconButton>
         <IconButton
           label="Archive plan"
           onClick={(event) => {
