@@ -131,6 +131,15 @@ export interface PlanItem extends BaseItem {
   targetDate: string | null;
   steps: Step[];
   color: string;
+  /** Pinned plans appear in the tray launch menu. */
+  pinned: boolean;
+  scratchpad: string;
+}
+
+export interface PlanTemplateOptions {
+  title: string;
+  startDate: string;
+  endDate: string;
 }
 
 export interface TaskItem extends BaseItem {

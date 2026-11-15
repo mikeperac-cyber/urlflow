@@ -1,4 +1,6 @@
 import { parseBatchRequest } from './batch';
+import { newId, nowIso } from './ids';
+import { normalizePlanTemplates } from './templates';
 import {
   PLAN_COLORS,
   emptyState,
@@ -29,16 +31,7 @@ export function isReadingState(value: unknown): value is ReadingState {
   return value === 'unread' || value === 'later' || value === 'read';
 }
 
-export function nowIso(): string {
-  return new Date().toISOString();
-}
-
-export function newId(): string {
-  if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
-    return globalThis.crypto.randomUUID();
-  }
-  return `id_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
+export { newId, nowIso };
 
 function cleanLinkEnrichment(source: Pick<ItemDraft, 'description' | 'siteName' | 'faviconKey'>) {
   const fields: Pick<LinkItem, 'description' | 'siteName' | 'faviconKey'> = {};
@@ -136,6 +129,8 @@ export function createItem(state: AppState, draft: ItemDraft): { state: AppState
         steps: cleanSteps(draft.steps),
         color: PLAN_COLORS.includes(String(draft.color)) ? String(draft.color) : PLAN_COLORS[0],
         planId: null,
+        pinned: Boolean(draft.pinned),
+        scratchpad: '',
       };
       item = plan;
       break;
@@ -207,6 +202,8 @@ export function updateItem(state: AppState, id: string, patch: ItemPatch): AppSt
     if (patch.targetDate !== undefined) updated.targetDate = patch.targetDate;
     if (patch.steps !== undefined) updated.steps = cleanSteps(patch.steps);
     if (patch.color !== undefined && PLAN_COLORS.includes(patch.color)) updated.color = patch.color;
+    if (patch.pinned !== undefined) updated.pinned = Boolean(patch.pinned);
+    if (patch.scratchpad !== undefined) updated.scratchpad = String(patch.scratchpad).slice(0, 20_000);
   }
 
   if (updated.kind === 'task' && existing.kind === 'task') {
@@ -344,6 +341,7 @@ export function mergeItems(
     merged.summary = primary.summary || other.summary;
     merged.targetDate = primary.targetDate ?? other.targetDate;
     merged.status = primary.status === 'paused' && other.status === 'active' ? 'active' : primary.status;
+    merged.pinned = primary.pinned || other.pinned;
   }
 
   if (merged.kind === 'link' && primary.kind === 'link' && other.kind === 'link') {
@@ -804,6 +802,8 @@ export function normalizeState(raw: unknown): AppState {
         targetDate: typeof item.targetDate === 'string' ? item.targetDate : null,
         steps: cleanSteps(item.steps),
         color: PLAN_COLORS.includes(String(item.color)) ? String(item.color) : PLAN_COLORS[0],
+        pinned: Boolean(item.pinned),
+        scratchpad: String(item.scratchpad ?? '').slice(0, 20_000),
       });
     } else if (item.kind === 'task') {
       items.push({
@@ -863,6 +863,6 @@ export function normalizeState(raw: unknown): AppState {
     reminders,
     ignoredMatches,
     tagRules: normalizeTagRules(source.tagRules),
-    planTemplates: [],
+    planTemplates: normalizePlanTemplates(source.planTemplates),
   };
 }
