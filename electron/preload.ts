@@ -41,6 +41,7 @@ const api: FlowApi = {
   deletePlanTemplate: (templateId) => ipcRenderer.invoke('planTemplate:delete', templateId),
   createPlanFromTemplate: (templateId, options) =>
     ipcRenderer.invoke('planTemplate:create', { templateId, options }),
+  launchPlanLinks: (planId) => ipcRenderer.invoke('plan:launch', planId),
   exportData: () => ipcRenderer.invoke('data:export'),
   importData: () => ipcRenderer.invoke('data:import'),
   revealDataFile: () => ipcRenderer.invoke('data:reveal'),

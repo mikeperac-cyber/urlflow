@@ -348,6 +348,8 @@ export interface FlowApi {
     templateId: string,
     options: PlanTemplateOptions,
   ) => Promise<{ state: AppState; planId: string }>;
+  /** Null means no link was opened and no state was committed. */
+  launchPlanLinks: (planId: string) => Promise<AppState | null>;
   exportData: () => Promise<string | null>;
   importData: () => Promise<AppState | null>;
   revealDataFile: () => Promise<void>;

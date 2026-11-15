@@ -23,6 +23,7 @@ import { fetchPageMetadata, readFaviconDataUrl } from './pageMetadata';
 import { captureSnapshotDocument } from './snapshotCapture';
 import { deleteSnapshot, pruneOrphanSnapshots, readSnapshot, writeSnapshot } from './snapshots';
 import { checkLinks } from './linkHealth';
+import { planLinksForLaunch } from '../shared/planLaunch';
 import { createBackup, ensureDailyBackup, listBackups as readBackupList, readBackup } from './backups';
 import * as core from '../shared/core';
 import { instantiateTemplate, templateFromPlan, upsertPlanTemplate } from '../shared/templates';
@@ -289,6 +290,11 @@ function createTray(): void {
 
 function refreshTrayMenu(): void {
   if (!tray) return;
+  const pinned = store
+    ? store.get().items
+      .filter((item): item is PlanItem => item.kind === 'plan' && item.pinned && !item.archivedAt)
+      .slice(0, 5)
+    : [];
   const menu = Menu.buildFromTemplate([
     {
       label: 'Save link from clipboard',
@@ -298,6 +304,16 @@ function refreshTrayMenu(): void {
     },
     { label: 'Open URL Flow', click: () => showWindow() },
     { label: 'Test notification', click: () => showNotification('URL Flow', 'Notifications are working.') },
+    ...(pinned.length > 0 ? [
+      { type: 'separator' as const },
+      {
+        label: 'Pinned plans',
+        submenu: pinned.map((plan) => ({
+          label: `Launch all links · ${plan.title}`,
+          click: () => { void launchPlanById(plan.id, true); },
+        })),
+      },
+    ] : []),
     { type: 'separator' },
     {
       label: 'Quit URL Flow',
@@ -353,6 +369,34 @@ function tickReminders(): void {
 async function fetchPageTitle(rawUrl: string): Promise<string | null> {
   const metadata = await fetchPageMetadata(rawUrl, userDataPath);
   return metadata?.title?.slice(0, 200) || null;
+}
+
+async function launchPlanById(planId: string, confirm: boolean): Promise<AppState | null> {
+  const links = planLinksForLaunch(store.get(), planId);
+  if (links.length === 0) return null;
+  if (confirm && links.length > 8) {
+    const choice = dialog.showMessageBoxSync({
+      type: 'question',
+      buttons: ['Launch', 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+      title: 'Launch all links?',
+      message: `Open ${links.length} links from this plan?`,
+    });
+    if (choice !== 0) return null;
+  }
+  const opened = new Set(await openLinks(links, (url) => shell.openExternal(url)));
+  if (opened.size === 0) return null;
+  const current = store.get();
+  const lastOpenedAt = new Date().toISOString();
+  return commit({
+    ...current,
+    items: current.items.map((item) =>
+      item.kind === 'link' && !item.archivedAt && opened.has(item.id)
+        ? { ...item, readingState: 'read', lastOpenedAt }
+        : item,
+    ),
+  }, 'Opened all plan links');
 }
 
 async function attachSnapshot(linkId: string): Promise<{ state: AppState; savedAt: string; bytes: number }> {
@@ -460,20 +504,27 @@ function registerIpc(): void {
   });
 
   ipcMain.handle('item:update', (_event, { id, patch }: { id: string; patch: ItemPatch }) => {
-    return commit(core.updateItem(store.get(), id, patch), 'Edited an item');
+    const saved = commit(core.updateItem(store.get(), id, patch), 'Edited an item');
+    refreshTrayMenu();
+    return saved;
   });
 
   ipcMain.handle('item:remove', (_event, id: string) => {
     const saved = commit(core.removeItem(store.get(), id), 'Deleted an item');
     void deleteSnapshot(userDataPath, id);
+    refreshTrayMenu();
     return saved;
   });
-  ipcMain.handle('item:archive', (_event, id: string) =>
-    commit(core.setArchived(store.get(), id, true), 'Archived an item'),
-  );
-  ipcMain.handle('item:restore', (_event, id: string) =>
-    commit(core.setArchived(store.get(), id, false), 'Restored an item'),
-  );
+  ipcMain.handle('item:archive', (_event, id: string) => {
+    const saved = commit(core.setArchived(store.get(), id, true), 'Archived an item');
+    refreshTrayMenu();
+    return saved;
+  });
+  ipcMain.handle('item:restore', (_event, id: string) => {
+    const saved = commit(core.setArchived(store.get(), id, false), 'Restored an item');
+    refreshTrayMenu();
+    return saved;
+  });
   ipcMain.handle('item:markReviewed', (_event, id: string) =>
     commit(core.markReviewed(store.get(), id), 'Reviewed an item'),
   );
@@ -626,6 +677,8 @@ function registerIpc(): void {
       return { state: saved, planId: result.planId };
     },
   );
+
+  ipcMain.handle('plan:launch', (_event, planId: string) => launchPlanById(String(planId ?? ''), false));
 
   ipcMain.handle('links:checkHealth', (_event, ids: string[]) => {
     const selected = new Set(Array.isArray(ids) ? ids.slice(0, 200) : []);

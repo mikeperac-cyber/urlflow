@@ -7,6 +7,7 @@ import {
   Bell,
   CalendarClock,
   Check,
+  ExternalLink,
   LayoutTemplate,
   Link2,
   ListPlus,
@@ -19,10 +20,11 @@ import {
   Trash2,
 } from 'lucide-react';
 import { planProgress } from '../../shared/core';
+import { isSafeExternalUrl } from '../../shared/url';
 import type { Step } from '../../shared/types';
 import { useApp } from '../app-context';
 import { LinkCard, NoteCard, TaskRow } from '../components/items';
-import { Button, EmptyState, IconButton, Progress, TagPill } from '../components/ui';
+import { Button, Confirm, EmptyState, IconButton, Progress, TagPill } from '../components/ui';
 import { formatDate, fromInputValue, reminderInfo, toInputValue } from '../lib/dates';
 
 export function PlanDetail() {
@@ -44,6 +46,7 @@ export function PlanDetail() {
   const [stepText, setStepText] = useState('');
   const [taskText, setTaskText] = useState('');
   const [focus, setFocus] = useState(false);
+  const [confirmLaunch, setConfirmLaunch] = useState(false);
   const [scratchpad, setScratchpad] = useState(plan?.scratchpad ?? '');
 
   useEffect(() => {
@@ -82,6 +85,7 @@ export function PlanDetail() {
     .filter((note) => note.planId === plan.id)
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt));
   const reminder = remindersById.get(plan.id);
+  const launchableLinks = planLinks.filter((link) => !link.archivedAt && isSafeExternalUrl(link.url)).length;
 
   async function addStep() {
     const text = stepText.trim();
@@ -203,6 +207,17 @@ export function PlanDetail() {
           </Button>
           <Button variant="primary" icon={<Pencil size={14} />} onClick={() => openEditor({ kind: 'plan', item: plan })}>
             Edit plan
+          </Button>
+          <Button
+            variant="subtle"
+            icon={<ExternalLink size={14} />}
+            disabled={launchableLinks === 0}
+            onClick={() => {
+              if (launchableLinks > 8) setConfirmLaunch(true);
+              else void run(api.launchPlanLinks(plan.id), { success: 'Opened all plan links' });
+            }}
+          >
+            Launch all links ({launchableLinks})
           </Button>
           <Button variant="subtle" icon={<Bell size={14} />} onClick={() => openReminder(plan)}>
             {reminder ? 'Change reminder' : 'Remind me'}
@@ -553,6 +568,18 @@ export function PlanDetail() {
           ) : null}
         </div>
       </div>
+
+      {confirmLaunch ? (
+        <Confirm
+          title="Launch all links?"
+          message={`This opens ${launchableLinks} links in your browser.`}
+          confirmLabel="Launch"
+          onConfirm={() => {
+            void run(api.launchPlanLinks(plan.id), { success: 'Opened all plan links' });
+          }}
+          onClose={() => setConfirmLaunch(false)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -26,7 +26,7 @@ import {
   type TaskItem,
 } from '../../shared/types';
 import { isReadingState, planProgress } from '../../shared/core';
-import { displayUrl, faviconTone, initialsFor } from '../../shared/url';
+import { displayUrl, faviconTone, initialsFor, isSafeExternalUrl } from '../../shared/url';
 import { useApp } from '../app-context';
 import { dueInfo, formatDate, relativeTime, reminderInfo } from '../lib/dates';
 import { Confirm, IconButton, Progress, TagPill } from './ui';
@@ -263,7 +263,15 @@ export function LinkCard({
 
 export function PlanCard({ plan }: { plan: PlanItem }) {
   const { navigate, links, tasks, notes, archiveItem, api, run } = useApp();
+  const [confirmLaunch, setConfirmLaunch] = useState(false);
   const progress = planProgress(plan);
+  const launchCount = links.filter(
+    (link) => link.planId === plan.id && !link.archivedAt && isSafeExternalUrl(link.url),
+  ).length;
+
+  function launchLinks() {
+    void run(api.launchPlanLinks(plan.id), { success: 'Opened all plan links' });
+  }
   const taskCount = tasks.filter((task) => task.planId === plan.id && !task.done).length;
   const linkCount = links.filter((link) => link.planId === plan.id).length;
   const noteCount = notes.filter((note) => note.planId === plan.id).length;
@@ -284,6 +292,18 @@ export function PlanCard({ plan }: { plan: PlanItem }) {
           </span>
         ) : null}
         <span className="plan-card__spacer" />
+        {launchCount > 0 ? (
+          <IconButton
+            label="Open all plan links"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (launchCount > 8) setConfirmLaunch(true);
+              else launchLinks();
+            }}
+          >
+            <ExternalLink size={14} />
+          </IconButton>
+        ) : null}
         <IconButton
           label="Pin plan to tray menu"
           aria-pressed={plan.pinned}
@@ -331,6 +351,16 @@ export function PlanCard({ plan }: { plan: PlanItem }) {
         </span>
         <span className="plan-card__open">Open plan →</span>
       </footer>
+
+      {confirmLaunch ? (
+        <Confirm
+          title="Launch all links?"
+          message={`This opens ${launchCount} links in your browser.`}
+          confirmLabel="Launch"
+          onConfirm={launchLinks}
+          onClose={() => setConfirmLaunch(false)}
+        />
+      ) : null}
     </article>
   );
 }

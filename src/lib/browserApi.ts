@@ -3,6 +3,7 @@ import { parseBookmarkFile } from '../../shared/bookmarks';
 import { isSafeExternalUrl } from '../../shared/url';
 import { normalizeTagRules } from '../../shared/tagRules';
 import { instantiateTemplate, templateFromPlan, upsertPlanTemplate } from '../../shared/templates';
+import { planLinksForLaunch } from '../../shared/planLaunch';
 import { DEFAULT_PREFERENCES, isInQuietHours, normalizePreferences } from '../../shared/preferences';
 import {
   emptyState,
@@ -230,6 +231,24 @@ export const browserApi: FlowApi = {
     ...current,
     planTemplates: current.planTemplates.filter((template) => template.id !== templateId),
   })),
+  launchPlanLinks: async (planId) => {
+    const targets = planLinksForLaunch(state, planId);
+    if (targets.length === 0) return null;
+    const opened = new Set<string>();
+    for (const link of targets) {
+      if (window.open(link.url, '_blank', 'noopener,noreferrer')) opened.add(link.id);
+    }
+    if (opened.size === 0) return null;
+    const lastOpenedAt = new Date().toISOString();
+    return mutate((current) => ({
+      ...current,
+      items: current.items.map((item) =>
+        item.kind === 'link' && opened.has(item.id)
+          ? { ...item, readingState: 'read', lastOpenedAt }
+          : item,
+      ),
+    }));
+  },
   createPlanFromTemplate: async (templateId, options) => {
     const template = state.planTemplates.find((entry) => entry.id === templateId);
     if (!template) throw new Error('That template no longer exists.');
