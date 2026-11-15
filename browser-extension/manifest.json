@@ -1,11 +1,15 @@
 {
   "manifest_version": 3,
   "name": "URL Flow Capture",
-  "version": "1.0.0",
-  "description": "Save the current page or a clicked link to the URL Flow desktop app.",
-  "permissions": ["contextMenus", "activeTab"],
+  "version": "1.1.0",
+  "description": "Save a page, link, selection or every open tab to the URL Flow desktop app.",
+  "permissions": ["contextMenus", "activeTab", "tabs", "tabGroups"],
   "background": {
     "service_worker": "service-worker.js",
     "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "URL Flow Capture"
   }
 }

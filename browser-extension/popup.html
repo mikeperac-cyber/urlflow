@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>URL Flow Capture</title>
+    <style>
+      :root { color-scheme: light dark; font-family: -apple-system, "Segoe UI", sans-serif; }
+      body { width: 320px; margin: 0; padding: 14px; }
+      h1 { font-size: 14px; margin: 0 0 2px; }
+      p { margin: 0; font-size: 12px; opacity: 0.75; }
+      label { display: block; font-size: 11px; font-weight: 600; margin: 12px 0 4px; }
+      input, select, button { box-sizing: border-box; font: inherit; width: 100%; padding: 7px 8px; }
+      input, select { border: 1px solid rgba(128, 128, 128, 0.45); border-radius: 7px; background: transparent; color: inherit; }
+      button { margin-top: 8px; border: 0; border-radius: 7px; background: #0a84ff; color: #fff; font-weight: 600; cursor: pointer; }
+      button.secondary { background: rgba(128, 128, 128, 0.22); color: inherit; }
+      button:disabled { opacity: 0.45; cursor: default; }
+      .status { min-height: 16px; margin-top: 10px; }
+    </style>
+  </head>
+  <body>
+    <h1>Save tabs to URL Flow</h1>
+    <p id="count">Reading this window...</p>
+
+    <label for="tags">Tags</label>
+    <input id="tags" type="text" placeholder="research, reading" autocomplete="off" />
+
+    <button id="save-links" type="button">Save all tabs as links</button>
+
+    <label for="group">Tab group</label>
+    <select id="group">
+      <option value="">All web tabs</option>
+    </select>
+
+    <label for="plan-title">Plan title</label>
+    <input id="plan-title" type="text" placeholder="Uses the tab group name" autocomplete="off" />
+
+    <button id="save-plan" class="secondary" type="button">Save tabs as a plan</button>
+    <p class="status" id="status" role="status"></p>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
